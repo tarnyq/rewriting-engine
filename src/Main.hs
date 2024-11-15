@@ -1,26 +1,14 @@
 module Main where
 
 import Control.Monad
+import Control.Monad.State
 
 -------------------------------------------------------------------------------
 -- Configuration
 
 type Env = (Int, Int)
-newtype Imp a = Imp {
-    run :: Env -> (a, Env)
-}
+type Imp = State Env
 
-instance Applicative Imp where
-    pure x = Imp $ \env -> (x, env)
-    (<*>) = ap
-
-instance Monad Imp where
-    return = pure
-    m >>= k  = Imp $ \env -> case run m env of
-                             (v, env') -> run (k v) env'
-
-instance Functor Imp where
-    fmap = liftM
 
 -------------------------------------------------------------------------------
 -- Arithmetic Expressions
@@ -35,8 +23,11 @@ evalA (Int n) = return n
 evalA (Add l r)  = do vl <- (evalA l)
                       vr <- (evalA r)
                       return $ vl + vr
-evalA X = Imp $ \env -> (fst env, env)
-evalA Y = Imp $ \env -> (snd env, env)
+evalA X = do env <- get
+             return $ fst env
+evalA Y = do env <- get
+             return $ snd env
+
 
 -------------------------------------------------------------------------------
 -- Boolean Expressions
@@ -54,10 +45,10 @@ evalB (LessThan l r) = do vl <- (evalA l)
 -- Testing
 
 runB :: BExp -> Env -> Bool
-runB exp env = fst (run (evalB exp) env)
+runB exp env = fst (runState (evalB exp) env)
 
 runA :: AExp -> Env -> Int
-runA exp env = fst (run (evalA exp) env)
+runA exp env = fst (runState (evalA exp) env)
 
 
 test_evalA =    (runA (Int 42)        (2,  2) == 42)
