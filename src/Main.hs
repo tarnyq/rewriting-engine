@@ -47,11 +47,11 @@ evalB (LessThan l r) = do vl <- (evalA l)
 -------------------------------------------------------------------------------
 -- Testing
 
-runB :: BExp -> Env -> Bool
-runB exp env = fst (runState (evalB exp) env)
-
 runA :: AExp -> Env -> Int
 runA exp env = fst (runState (evalA exp) env)
+
+runB :: BExp -> Env -> Bool
+runB exp env = fst (runState (evalB exp) env)
 
 
 test_arith =    (runA (Int 42)        (2,  2) == 42)
