@@ -51,17 +51,17 @@ runA :: AExp -> Env -> Int
 runA exp env = fst (runState (evalA exp) env)
 
 
-test_evalA =    (runA (Int 42)        (2,  2) == 42)
+test_arith =    (runA (Int 42)        (2,  2) == 42)
              && (runA Y               (2, 42) == 42)
              && (runA (Add (Int 2) Y) (2, 40) == 42)
              && (runA (Add X       Y) (2, 40) == 42)
 
-test_evalB =    (runB (Bool True)    (2, 2) == True)
+test_bool =     (runB (Bool True)    (2, 2) == True)
              && (runB (LessThan X Y) (2, 2) == False)
              && (runB (LessThan X Y) (2, 3) == True)
              && (runB (LessThan X Y) (3, 2) == False)
 
 main :: IO ()
-main = do putStrLn $ "test_evalA: " ++ (show test_evalA)
-          putStrLn $ "test_evalB: " ++ (show test_evalB)
+main = do putStrLn $ "test_arith: " ++ (show test_arith)
+          putStrLn $ "test_bool: " ++ (show test_bool)
 
