@@ -15,11 +15,14 @@ type Imp = State Env
 
 data AExp = Int Int
           | X | Y
+          | Neg AExp
           | Add AExp AExp
     deriving Show
 
 evalA :: AExp -> Imp Int
 evalA (Int n) = return n
+evalA (Neg e) = do v <- evalA e
+                   return $ -1 * v
 evalA (Add l r)  = do vl <- (evalA l)
                       vr <- (evalA r)
                       return $ vl + vr
@@ -55,6 +58,7 @@ test_arith =    (runA (Int 42)        (2,  2) == 42)
              && (runA Y               (2, 42) == 42)
              && (runA (Add (Int 2) Y) (2, 40) == 42)
              && (runA (Add X       Y) (2, 40) == 42)
+             && (runA (Add (Neg X) Y) (2, 44) == 42)
 
 test_bool =     (runB (Bool True)    (2, 2) == True)
              && (runB (LessThan X Y) (2, 2) == False)
