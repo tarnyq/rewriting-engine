@@ -19,17 +19,17 @@ data AExp = Int Int
           | Add AExp AExp
     deriving Show
 
-evalA :: AExp -> Imp Int
-evalA (Int n) = return n
-evalA (Neg e) = do v <- evalA e
-                   return $ -1 * v
-evalA (Add l r)  = do vl <- (evalA l)
-                      vr <- (evalA r)
-                      return $ vl + vr
-evalA X = do env <- get
-             return $ fst env
-evalA Y = do env <- get
-             return $ snd env
+runA :: AExp -> Imp Int
+runA (Int n) = return n
+runA (Neg e) = do v <- runA e
+                  return $ -1 * v
+runA (Add l r)  = do vl <- (runA l)
+                     vr <- (runA r)
+                     return $ vl + vr
+runA X = do env <- get
+            return $ fst env
+runA Y = do env <- get
+            return $ snd env
 
 
 -------------------------------------------------------------------------------
@@ -38,11 +38,11 @@ evalA Y = do env <- get
 data BExp = Bool Bool
           | LessThan AExp AExp
 
-evalB :: BExp -> Imp Bool
-evalB (Bool b)       = return b
-evalB (LessThan l r) = do vl <- (evalA l)
-                          vr <- (evalA r)
-                          return $ vl < vr
+runB :: BExp -> Imp Bool
+runB (Bool b)       = return b
+runB (LessThan l r) = do vl <- (runA l)
+                         vr <- (runA r)
+                         return $ vl < vr
 
 
 -------------------------------------------------------------------------------
@@ -53,59 +53,59 @@ data Stmt = While BExp Stmt
           | AssignX AExp
           | AssignY AExp
 
-evalStmt :: Stmt -> Imp ()
-evalStmt (Block [])     = return ()
-evalStmt (Block (s:ss)) = do evalStmt s
-                             evalStmt $ Block ss
-                             return ()
-evalStmt (AssignX e) = do v <- evalA e
-                          (x, y) <- get
-                          put (v, y)
-                          return ()
-evalStmt (AssignY e) = do v <- evalA e
-                          (x, y) <- get
-                          put (x, v)
-                          return ()
-evalStmt (While cond stmts) = do c <- evalB cond
-                                 if c then evalStmt $ Block [stmts, (While cond stmts)]
-                                      else return ()
+runStmt :: Stmt -> Imp ()
+runStmt (Block [])     = return ()
+runStmt (Block (s:ss)) = do runStmt s
+                            runStmt $ Block ss
+                            return ()
+runStmt (AssignX e) = do v <- runA e
+                         (x, y) <- get
+                         put (v, y)
+                         return ()
+runStmt (AssignY e) = do v <- runA e
+                         (x, y) <- get
+                         put (x, v)
+                         return ()
+runStmt (While cond stmts) = do c <- runB cond
+                                if c then runStmt $ Block [stmts, (While cond stmts)]
+                                     else return ()
 
 
 -------------------------------------------------------------------------------
 -- Testing
 
-runA :: AExp -> Env -> Int
-runA exp env = fst (runState (evalA exp) env)
+evalA :: AExp -> Env -> Int
+evalA exp env = evalState (runA exp) env
 
-runB :: BExp -> Env -> Bool
-runB exp env = fst (runState (evalB exp) env)
+evalB :: BExp -> Env -> Bool
+evalB exp env = evalState (runB exp) env
 
-runStmt :: Stmt -> Env
-runStmt exp = snd (runState (evalStmt exp) env)
+execStmt :: Stmt -> Env
+execStmt exp = execState (runStmt exp) env
     where env = (0, 0)
 
-test_arith =    (runA (Int 42)        (2,  2) == 42)
-             && (runA Y               (2, 42) == 42)
-             && (runA (Add (Int 2) Y) (2, 40) == 42)
-             && (runA (Add X       Y) (2, 40) == 42)
-             && (runA (Add (Neg X) Y) (2, 44) == 42)
+test_arith =    (evalA (Int 42)        (2,  2) == 42)
+             && (evalA Y               (2, 42) == 42)
+             && (evalA (Add (Int 2) Y) (2, 40) == 42)
+             && (evalA (Add X       Y) (2, 40) == 42)
+             && (evalA (Add (Neg X) Y) (2, 44) == 42)
 
-test_bool =     (runB (Bool True)    (2, 2) == True)
-             && (runB (LessThan X Y) (2, 2) == False)
-             && (runB (LessThan X Y) (2, 3) == True)
-             && (runB (LessThan X Y) (3, 2) == False)
+test_bool =     (evalB (Bool True)    (2, 2) == True)
+             && (evalB (LessThan X Y) (2, 2) == False)
+             && (evalB (LessThan X Y) (2, 3) == True)
+             && (evalB (LessThan X Y) (3, 2) == False)
 
 coundToN n = (While (LessThan X $ Int n) $
                     Block [(AssignX (Add X $ Int 1))])
 
-test_stmt =     (runStmt (Block [])           == (0, 0))
-             && (runStmt (AssignX (Int 42))   == (42, 0))
-             && (runStmt (AssignY (Int 42))   == (0, 42))
-             && (runStmt (Block [
-                            (AssignY (Int 43)),
-                            (AssignY (Add Y (Neg $ Int 1)))
-                         ])                   == (0, 42))
-             && (runStmt (coundToN 42) == (42, 0))
+test_stmt =     (execStmt (Block [])         == (0, 0))
+             && (execStmt (AssignX (Int 42)) == (42, 0))
+             && (execStmt (AssignY (Int 42)) == (0, 42))
+             && (execStmt (Block [
+                              (AssignY (Int 43)),
+                              (AssignY (Add Y (Neg $ Int 1)))
+                          ])                 == (0, 42))
+             && (execStmt (coundToN 42)      == (42, 0))
 
 main :: IO ()
 main = do putStrLn $ "test_arith: " ++ (show test_arith)
