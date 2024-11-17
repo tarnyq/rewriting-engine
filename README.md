@@ -69,9 +69,23 @@ The Expression Problem: Extensible Type Heirarchies
 *   https://stackoverflow.com/questions/6889715/extending-a-datatype-in-haskell
 
 
-Advantages
-----------
+Possible Advantages to Haskell
+------------------------------
 
--   Could we use the type system to infer confluence? Semantic rules that don't
+-   Strong standard library
+-   Quick Check may help with fuzz-testing
+    --- it also gives ideas for represnting reashabilty claims in Haskell.
+-   LiquidHaskell may help with proving simplifications
+-   Many languages have semantics that execute in phases (e.g. C, Boogie, SIMPLE)
+    these phases need very different configurations. They are all kept between phases in current semantics,
+    but we could easily use different ones for different phases.
+-   Could we use the type system to infer confluence in some cases? Semantic rules that don't
     touch non-thread-local state? This may make summarization of
     non-deterministic languages more feasible.
+
+Possible Disadvantages
+----------------------
+
+-   We lose control of the language design
+-   rewriting rules aren't "native" to the language
+-   a *lot* of work to do to reach feature parity with K
