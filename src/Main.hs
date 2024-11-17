@@ -37,12 +37,15 @@ runA Y = do env <- get
 
 data BExp = Bool Bool
           | LessThan AExp AExp
+          | Flip
 
 runB :: BExp -> Imp Bool
 runB (Bool b)       = return b
 runB (LessThan l r) = do vl <- (runA l)
                          vr <- (runA r)
                          return $ vl < vr
+runB (Flip)         = lift $ do ret <- [True, False]
+                                return ret
 
 
 -------------------------------------------------------------------------------
@@ -84,6 +87,7 @@ execStmt :: Stmt -> [Env]
 execStmt exp = execStateT (runStmt exp) env
     where env = (0, 0)
 
+
 test_arith =    (evalA (Int 42)        (2,  2) == [42])
              && (evalA Y               (2, 42) == [42])
              && (evalA (Add (Int 2) Y) (2, 40) == [42])
@@ -106,6 +110,13 @@ test_stmt =     (execStmt (Block [])         == [(0, 0)])
                               (AssignY (Add Y (Neg $ Int 1)))
                           ])                 == [(0, 42)])
              && (execStmt (coundToN 42)      == [(42, 0)])
+
+         ------ The following fails because runStmt is a recursive function
+         ------ that must execute to completion.
+         --- && ((take 5 (execStmt (While (Flip) $
+         ---                        Block [(AssignX (Add X $ Int 1))])))
+         ---                                 == [(0, 0), (1, 0), (2, 0), (3, 0), (4, 0), (5, 0),])
+
 
 main :: IO ()
 main = do putStrLn $ "test_arith: " ++ (show test_arith)
