@@ -6,8 +6,8 @@ import Control.Monad.State
 -------------------------------------------------------------------------------
 -- Configuration
 
-type Env = (Int, Int)
-type Imp = StateT Env []
+type Config = (Int, Int)
+type Imp = StateT Config []
 
 
 -------------------------------------------------------------------------------
@@ -77,13 +77,13 @@ runStmt (While cond stmts) = do c <- runB cond
 -------------------------------------------------------------------------------
 -- Testing
 
-evalA :: AExp -> Env -> [Int]
+evalA :: AExp -> Config -> [Int]
 evalA exp env = evalStateT (runA exp) env
 
-evalB :: BExp -> Env -> [Bool]
+evalB :: BExp -> Config -> [Bool]
 evalB exp env = evalStateT (runB exp) env
 
-execStmt :: Stmt -> [Env]
+execStmt :: Stmt -> [Config]
 execStmt exp = execStateT (runStmt exp) env
     where env = (0, 0)
 
