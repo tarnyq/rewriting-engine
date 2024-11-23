@@ -17,15 +17,17 @@ data BExp = Bool Bool
           | Flip
 
 data Stmt = While BExp Stmt
-          | Block [Stmt]
+          | Block Stmts
           | AssignX AExp
           | AssignY AExp
 
+type Stmts = [Stmt]
+type Pgm = Stmts
 
 -------------------------------------------------------------------------------
 -- Configuration
 
-type Config = (Int, Int)
+data Config = Config { pgm::Pgm, x::Int, y::Int }
 type Imp = StateT Config []
 
 
@@ -39,10 +41,10 @@ runA (Neg e) = do v <- runA e
 runA (Add l r)  = do vl <- (runA l)
                      vr <- (runA r)
                      return $ vl + vr
-runA X = do env <- get
-            return $ fst env
-runA Y = do env <- get
-            return $ snd env
+runA X = do config <- get
+            return $ x config
+runA Y = do config <- get
+            return $ y config
 
 
 -------------------------------------------------------------------------------
@@ -66,12 +68,12 @@ runStmt (Block (s:ss)) = do runStmt s
                             runStmt $ Block ss
                             return ()
 runStmt (AssignX e) = do v <- runA e
-                         (x, y) <- get
-                         put (v, y)
+                         config <- get
+                         put config{x = v}
                          return ()
 runStmt (AssignY e) = do v <- runA e
-                         (x, y) <- get
-                         put (x, v)
+                         config <- get
+                         put config{y = v}
                          return ()
 runStmt (While cond stmts) = do c <- runB cond
                                 if c then runStmt $ Block [stmts, (While cond stmts)]
@@ -81,16 +83,16 @@ runStmt (While cond stmts) = do c <- runB cond
 -------------------------------------------------------------------------------
 -- Testing
 
-evalA :: AExp -> Config -> [Int]
-evalA exp env = evalStateT (runA exp) env
+evalA :: AExp -> (Int, Int) -> [Int]
+evalA exp xy = evalStateT (runA exp) Config{pgm = [], x = fst xy, y = snd xy}
 
-evalB :: BExp -> Config -> [Bool]
-evalB exp env = evalStateT (runB exp) env
+evalB :: BExp -> (Int, Int) -> [Bool]
+evalB exp xy = evalStateT (runB exp) Config{pgm = [], x = fst xy, y = snd xy}
 
-execStmt :: Stmt -> [Config]
-execStmt exp = execStateT (runStmt exp) env
-    where env = (0, 0)
-
+execStmt :: Stmt -> [(Int, Int)]
+execStmt exp = fmap (\r -> (x r, y r)) results
+    where config = Config{pgm = [], x = 0, y = 0}
+          results = execStateT (runStmt exp) config
 
 test_arith =    (evalA (Int 42)        (2,  2) == [42])
              && (evalA Y               (2, 42) == [42])
