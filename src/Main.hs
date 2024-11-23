@@ -4,6 +4,25 @@ import Control.Monad
 import Control.Monad.State
 
 -------------------------------------------------------------------------------
+-- Syntax
+
+data AExp = Int Int
+          | X | Y
+          | Neg AExp
+          | Add AExp AExp
+    deriving Show
+
+data BExp = Bool Bool
+          | LessThan AExp AExp
+          | Flip
+
+data Stmt = While BExp Stmt
+          | Block [Stmt]
+          | AssignX AExp
+          | AssignY AExp
+
+
+-------------------------------------------------------------------------------
 -- Configuration
 
 type Config = (Int, Int)
@@ -12,12 +31,6 @@ type Imp = StateT Config []
 
 -------------------------------------------------------------------------------
 -- Arithmetic Expressions
-
-data AExp = Int Int
-          | X | Y
-          | Neg AExp
-          | Add AExp AExp
-    deriving Show
 
 runA :: AExp -> Imp Int
 runA (Int n) = return n
@@ -35,10 +48,6 @@ runA Y = do env <- get
 -------------------------------------------------------------------------------
 -- Boolean Expressions
 
-data BExp = Bool Bool
-          | LessThan AExp AExp
-          | Flip
-
 runB :: BExp -> Imp Bool
 runB (Bool b)       = return b
 runB (LessThan l r) = do vl <- (runA l)
@@ -50,11 +59,6 @@ runB (Flip)         = lift $ do ret <- [True, False]
 
 -------------------------------------------------------------------------------
 -- Statements
-
-data Stmt = While BExp Stmt
-          | Block [Stmt]
-          | AssignX AExp
-          | AssignY AExp
 
 runStmt :: Stmt -> Imp ()
 runStmt (Block [])     = return ()
