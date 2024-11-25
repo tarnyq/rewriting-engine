@@ -50,6 +50,28 @@ rewriting engines such as G2. We may also take the approach of translating Haske
 [quasiquoting]: https://www.cs.tufts.edu/comp/150FP/archive/geoff-mainland/quasiquoting.pdf
 [Haskell Core]: https://github.com/ghc/ghc/blob/master/docs/core-spec/core-spec.pdf
 
+Goals
+-----
+
+Our short term goals are to show that K-as-a-Haskell library is feasible,
+from the point of view of execution speed and symbolic execution while also
+allowing us to use native Haskell tools and libraries.
+
+1.  Implement Imp in Haskell as an incarnation of rewriting logic---i.e.
+    a transition system over a configuration allowing for non-deterministc
+    operators and various possiblilities for interlievings.
+    Benchmark to compare against LLVM backend.
+2.  Implement symbolic execution for Imp, either via LiquidHaskell, or other SMT based tech
+    such G2, or maybe even translation of Haskell Core to Maude.
+    Benchmark to compare against Haskell backend.
+3.  Prove Sum to N.
+    This does not need to be completely automated---we may inform the prover
+    when to narrow, step and subsume as necessary.
+
+In the medium term, our goal is to show that we can bring in the convenience
+and readability of K specifications to Haskell implementations.
+This may be done through quasiquoting or some other Template Haskell mechanism.
+
 Additional Reading
 ------------------
 
@@ -68,6 +90,9 @@ The Expression Problem: Extensible Type Heirarchies
 *   https://www.cambridge.org/core/journals/journal-of-functional-programming/article/data-types-a-la-carte/14416CB20C4637164EA9F77097909409
 *   https://stackoverflow.com/questions/6889715/extending-a-datatype-in-haskell
 
+Rewriting using LiquidHaskell
+
+*   https://arxiv.org/pdf/2202.05872
 
 Possible Advantages to Haskell
 ------------------------------
