@@ -16,8 +16,7 @@ data BExp = Bool Bool
           | LessThan AExp AExp
           | Flip
 
-data Stmt = While BExp Stmt
-          | Block Stmts
+data Stmt = While BExp Stmts
           | AssignX AExp
           | AssignY AExp
 
@@ -28,56 +27,73 @@ type Pgm = Stmts
 -- Configuration
 
 data Config = Config { pgm::Pgm, x::Int, y::Int }
+
+-- Rewriting is a transition system over this configuration.
+-- Further we use the List monad to represent non-determinism.
+-- Each item in the resulting list is semantically thought of as a disjunct
+-- of configurations.
 type Imp = StateT Config []
 
-
--------------------------------------------------------------------------------
--- Arithmetic Expressions
-
-runA :: AExp -> Imp Int
-runA (Int n) = return n
-runA (Neg e) = do v <- runA e
-                  return $ -1 * v
-runA (Add l r)  = do vl <- (runA l)
-                     vr <- (runA r)
-                     return $ vl + vr
-runA X = do config <- get
-            return $ x config
-runA Y = do config <- get
-            return $ y config
-
-
--------------------------------------------------------------------------------
--- Boolean Expressions
-
-runB :: BExp -> Imp Bool
-runB (Bool b)       = return b
-runB (LessThan l r) = do vl <- (runA l)
-                         vr <- (runA r)
-                         return $ vl < vr
-runB (Flip)         = lift $ do ret <- [True, False]
-                                return ret
+-- TODO: We use rewriting to [] as an encoding of "stuck" states.
+-- The more semantically correct way of interpreting this is rewriting
+-- to "bottom".
+stuck :: Imp a
+stuck = mempty
 
 
 -------------------------------------------------------------------------------
 -- Statements
 
-runStmt :: Stmt -> Imp ()
-runStmt (Block [])     = return ()
-runStmt (Block (s:ss)) = do runStmt s
-                            runStmt $ Block ss
-                            return ()
-runStmt (AssignX e) = do v <- runA e
-                         config <- get
-                         put config{x = v}
-                         return ()
-runStmt (AssignY e) = do v <- runA e
-                         config <- get
-                         put config{y = v}
-                         return ()
+next :: Imp ()
+next =      nextAssignX
+        <|> nextAssignY
+        <|> nextWhileTrue
+        <|> nextWhileFalse
+
+nextAssignX
+        = do Config{pgm=pgm} <- get
+             case pgm of
+                  (AssignX (Int e)):ss -> do put cfg{pgm=ss, x=e}
+                  _                    -> stuck
+nextAssignY
+        = do Config{pgm=pgm} <- get
+             case pgm of
+                  (AssignY (Int e)):ss -> do put cfg{pgm=ss, y=e}
+                  _                    -> stuck
+
+nextWhileTrue
+        = do Config{pgm=pgm} <- get
+             case pgm of
+                  (While (Bool False) stmts):ss -> do put cfg{pgm=ss}
+                  _                             -> stuck
 runStmt (While cond stmts) = do c <- runB cond
-                                if c then runStmt $ Block [stmts, (While cond stmts)]
-                                     else return ()
+                                if c then runStmt $ [stmts, (While cond stmts)]
+                                     else return []
+
+
+-------------------------------------------------------------------------------
+-- Arithmetic Expressions
+
+runA :: AExp -> Imp AExp
+runA (Int n)        = stuck
+runA (Neg (Int i))  = return $ Int $ -1 * i
+runA (Add (Int l) (Int r))
+                    = return $ Int $ l + r
+runA X              = do config <- get
+                         return $ Int $ x config
+runA Y              = do config <- get
+                         return $ Int $ y config
+
+
+-------------------------------------------------------------------------------
+-- Boolean Expressions
+
+runB :: BExp -> Imp BExp
+runB (Bool b)       = stuck
+runB (LessThan (Int l) (Int r))
+                    = return $ Bool $ l < r
+runB (Flip)         = lift $ do ret <- [(Bool True), (Bool False)]
+                                return ret
 
 
 -------------------------------------------------------------------------------
