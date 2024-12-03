@@ -54,7 +54,6 @@ initConfig pgm = Config {pgm=pgm, x=0, y=0}
 stuck :: Imp a
 stuck = StateT $ \cfg -> []
 
--- Execute to termination
 execConfig :: Imp ()
 execConfig = StateT f
      where f :: Config -> [((), Config)]
@@ -63,9 +62,9 @@ execConfig = StateT f
                               _:_ -> concatMap f nexts
               where nexts = execStateT step config
 
-exec :: Pgm -> [Config]
-exec pgm = execStateT execConfig $ initConfig pgm
 
+execPgm :: Pgm -> [Config]
+execPgm pgm = execStateT execConfig $ initConfig pgm
 
 -------------------------------------------------------------------------------
 -- Top-level rewrites: Rewriting individual statements
@@ -149,24 +148,28 @@ nextB (Flip)         = lift $ do ret <- [(Bool True), (Bool False)]
 -- Testing
 
 --- Execute a program to termination and
-execxy p = map (\c -> (x c, y c)) $ exec p
+execxy p = map (\c -> (x c, y c)) $ execPgm p
 
-execA :: AExp -> (Int, Int) -> [AExp]
-execA exp xy = evalStateT (nextA exp) Config{pgm = [], x = fst xy, y = snd xy}
+execA :: AExp -> (Int, Int) -> [Int]
+execA a (xv, yv) = map x $ execPgm [AssignX (Int xv), AssignY (Int yv), AssignX a]
 
-execB :: BExp -> (Int, Int) -> [BExp]
-execB exp xy = evalStateT (nextB exp) Config{pgm = [], x = fst xy, y = snd xy}
+execB :: BExp -> (Int, Int) -> [Int]
+execB b (xv, yv) = map x $ execPgm [ AssignX (Int xv)
+                                   , AssignY (Int yv)
+                                   , If b [AssignX (Int 99)]
+                                   ]
 
-test_arith =    (execA (Int 42)        (2,  2) == [Int 42])
-             && (execA Y               (2, 42) == [Int 42])
-             && (execA (Add (Int 2) Y) (2, 40) == [Int 42])
-             && (execA (Add X       Y) (2, 40) == [Int 42])
-             && (execA (Add (Neg X) Y) (2, 44) == [Int 42])
+test_arith =    (execA (Int 42)        (2,  2) == [42])
+             && (execA Y               (2, 42) == [42])
+             && (execA (Add (Int 2) Y) (2, 40) == [42])
+             && (execA (Add X       Y) (2, 40) == [42])
+             && (execA (Add (Neg X) Y) (2, 44) == [42])
 
-test_bool =     (execB (Bool True)    (2, 2) == [Bool True])
-             && (execB (LessThan X Y) (2, 2) == [Bool False])
-             && (execB (LessThan X Y) (2, 3) == [Bool True])
-             && (execB (LessThan X Y) (3, 2) == [Bool False])
+test_bool =     (execB (Bool True)    (2, 2) == [99])
+             && (execB (LessThan X Y) (2, 2) == [2])
+             && (execB (LessThan X Y) (2, 3) == [99])
+             && (execB (LessThan X Y) (3, 2) == [3])
+             && (execB (Flip)         (0, 66) == [99, 0])
 
 coundToN n = [While (LessThan X $ Int n) $
                     [(AssignX (Add X $ Int 1))]]
@@ -182,19 +185,19 @@ test_stmt =    (execxy ([])                 == [(0, 0)])
                           (AssignY (Add Y (Neg $ Int 1)))
                         ])                 == [(0, 42)])
             && (execxy (coundToN 42)      == [(42, 0)])
--- 
---          ------ The following fails because runStmt is a recursive function
---          ------ that must execute to completion.
---          --- && ((take 5 (execStmt (While (Flip) $
---          ---                        Block [(AssignX (Add X $ Int 1))])))
---          ---                                 == [(0, 0), (1, 0), (2, 0), (3, 0), (4, 0), (5, 0),])
--- 
--- 
+ 
+          ------ The following fails because runStmt is a recursive function
+          ------ that must execute to completion.
+          --  && ((take 5 (execxy (While (Neg Flip) $
+          --                               [(AssignX (Add X $ Int 1))])))
+          --                                  == [(0, 0), (1, 0), (2, 0), (3, 0), (4, 0), (5, 0)])
+ 
+ 
 main :: IO ()
-main = do putStrLn $ "test_stmt: " ++ (show $ exec (coundToN 42))
-          putStrLn $ "test_stmt: " ++ (show $ exec $ (pgm . head) $ exec [AssignX (Int 1), AssignY X])
+main = do putStrLn $ "test_stmt: " ++ (show $ execPgm (coundToN 42))
+          putStrLn $ "test_stmt: " ++ (show $ execPgm $ (pgm . head) $ execPgm [AssignX (Int 1), AssignY X])
           putStrLn $ "test_stmt: " ++ (show test_stmt)
-          -- putStrLn $ "test_arith: " ++ (show test_arith)
-          -- putStrLn $ "test_bool: " ++ (show test_bool)
+          putStrLn $ "test_arith: " ++ (show test_arith)
+          putStrLn $ "test_bool: " ++ (show test_bool)
 
 -- 
