@@ -83,14 +83,14 @@ nextAssignX
         = do cfg <- get
              case pgm cfg of
                   (AssignX (Int e)):ss -> do put cfg{pgm=ss, x=e}
-                  (AssignX v)      :ss -> do v' <- runA v
+                  (AssignX v)      :ss -> do v' <- nextA v
                                              put cfg{pgm=(AssignX v'):ss}
                   _                    -> stuck
 nextAssignY
         = do cfg <- get
              case pgm cfg of
                   (AssignY (Int e)):ss -> do put cfg{pgm=ss, y=e}
-                  (AssignY v)      :ss -> do v' <- runA v
+                  (AssignY v)      :ss -> do v' <- nextA v
                                              put cfg{pgm=(AssignY v'):ss}
                   _                    -> stuck
 nextWhile
@@ -103,7 +103,7 @@ nextIf  = do cfg <- get
              case pgm cfg of
                   (If (Bool True) body):ss  -> do put cfg{pgm=body ++ ss}
                   (If (Bool False) body):ss -> do put cfg{pgm=ss}
-                  (If cond body):ss -> do c' <- runB cond
+                  (If cond body):ss -> do c' <- nextB cond
                                           put cfg{pgm=(If c' body):ss}
                   _                 -> stuck
 
@@ -111,38 +111,38 @@ nextIf  = do cfg <- get
 -------------------------------------------------------------------------------
 -- Arithmetic Expressions
 
-runA :: AExp -> Imp AExp
-runA (Int n)        = stuck
-runA (Neg (Int i))  = return $ Int $ -1 * i
-runA (Neg e)        = do e' <- runA e
-                         return $ Neg e'
-runA (Add (Int l) (Int r))
-                    = return $ Int $ l + r
-runA (Add (Int l) r)
-                    = do r' <- runA r
-                         return $ Add (Int l) r'
-runA (Add l r)      = do l' <- runA l
-                         return $ Add l' r
-runA X              = do config <- get
-                         return $ Int $ x config
-runA Y              = do config <- get
-                         return $ Int $ y config
+nextA :: AExp -> Imp AExp
+nextA (Int n)        = stuck
+nextA (Neg (Int i))  = return $ Int $ -1 * i
+nextA (Neg e)        = do e' <- nextA e
+                          return $ Neg e'
+nextA (Add (Int l) (Int r))
+                     = return $ Int $ l + r
+nextA (Add (Int l) r)
+                     = do r' <- nextA r
+                          return $ Add (Int l) r'
+nextA (Add l r)      = do l' <- nextA l
+                          return $ Add l' r
+nextA X              = do config <- get
+                          return $ Int $ x config
+nextA Y              = do config <- get
+                          return $ Int $ y config
 
 
 -------------------------------------------------------------------------------
 -- Boolean Expressions
 
-runB :: BExp -> Imp BExp
-runB (Bool b)       = stuck
-runB (LessThan (Int l) (Int r))
-                    = return $ Bool $ l < r
-runB (LessThan (Int l) r)
-                    = do r' <- runA r
-                         return $ LessThan (Int l) r'
-runB (LessThan l r) = do l' <- runA l
-                         return $ LessThan l' r
-runB (Flip)         = lift $ do ret <- [(Bool True), (Bool False)]
-                                return ret
+nextB :: BExp -> Imp BExp
+nextB (Bool b)       = stuck
+nextB (LessThan (Int l) (Int r))
+                     = return $ Bool $ l < r
+nextB (LessThan (Int l) r)
+                     = do r' <- nextA r
+                          return $ LessThan (Int l) r'
+nextB (LessThan l r) = do l' <- nextA l
+                          return $ LessThan l' r
+nextB (Flip)         = lift $ do ret <- [(Bool True), (Bool False)]
+                                 return ret
 
 
 -------------------------------------------------------------------------------
@@ -152,10 +152,10 @@ runB (Flip)         = lift $ do ret <- [(Bool True), (Bool False)]
 execxy p = map (\c -> (x c, y c)) $ exec p
 
 execA :: AExp -> (Int, Int) -> [AExp]
-execA exp xy = evalStateT (runA exp) Config{pgm = [], x = fst xy, y = snd xy}
+execA exp xy = evalStateT (nextA exp) Config{pgm = [], x = fst xy, y = snd xy}
 
 execB :: BExp -> (Int, Int) -> [BExp]
-execB exp xy = evalStateT (runB exp) Config{pgm = [], x = fst xy, y = snd xy}
+execB exp xy = evalStateT (nextB exp) Config{pgm = [], x = fst xy, y = snd xy}
 
 test_arith =    (execA (Int 42)        (2,  2) == [Int 42])
              && (execA Y               (2, 42) == [Int 42])
