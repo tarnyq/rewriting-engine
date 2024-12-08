@@ -30,6 +30,9 @@ type Pgm = Stmts
 -------------------------------------------------------------------------------
 -- Configuration
 
+-- The IMP language is defined over a state consisting of two variables, x and
+-- y, and a program.
+
 data Config = Config { pgm::Pgm, x::Int, y::Int }
     deriving (Eq, Show)
 
@@ -102,9 +105,9 @@ nextIf  = do cfg <- get
              case pgm cfg of
                   (If (Bool True) body):ss  -> do put cfg{pgm=body ++ ss}
                   (If (Bool False) body):ss -> do put cfg{pgm=ss}
-                  (If cond body):ss -> do c' <- nextB cond
-                                          put cfg{pgm=(If c' body):ss}
-                  _                 -> stuck
+                  (If cond body):ss         -> do c' <- nextB cond
+                                                  put cfg{pgm=(If c' body):ss}
+                  _                         -> stuck
 
 
 -------------------------------------------------------------------------------
