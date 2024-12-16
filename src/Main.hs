@@ -76,38 +76,20 @@ execPgm pgm = execStateT execConfig $ initConfig pgm
 -- are then composed in parallel.
 
 step :: Imp ()
-step =      nextAssignX
-        <|> nextAssignY
-        <|> nextWhile
-        <|> nextIf
-
-nextAssignX
-        = do cfg <- get
-             case pgm cfg of
-                  (AssignX (Int e)):ss -> do put cfg{pgm=ss, x=e}
-                  (AssignX v)      :ss -> do v' <- nextA v
-                                             put cfg{pgm=(AssignX v'):ss}
-                  _                    -> stuck
-nextAssignY
-        = do cfg <- get
-             case pgm cfg of
-                  (AssignY (Int e)):ss -> do put cfg{pgm=ss, y=e}
-                  (AssignY v)      :ss -> do v' <- nextA v
-                                             put cfg{pgm=(AssignY v'):ss}
-                  _                    -> stuck
-nextWhile
-        = do cfg <- get
-             case pgm cfg of
-                  (While cond body):ss -> do put cfg{pgm=(If cond $ body ++ [While cond body]):ss}
-                  _                    -> stuck
-
-nextIf  = do cfg <- get
-             case pgm cfg of
-                  (If (Bool True) body):ss  -> do put cfg{pgm=body ++ ss}
-                  (If (Bool False) body):ss -> do put cfg{pgm=ss}
-                  (If cond body):ss         -> do c' <- nextB cond
-                                                  put cfg{pgm=(If c' body):ss}
-                  _                         -> stuck
+step = do cfg <- get
+          case pgm cfg of
+               (AssignX (Int e)):ss      -> do put cfg{pgm=ss, x=e}
+               (AssignX v)      :ss      -> do v' <- nextA v
+                                               put cfg{pgm=(AssignX v'):ss}
+               (AssignY (Int e)):ss      -> do put cfg{pgm=ss, y=e}
+               (AssignY v)      :ss      -> do v' <- nextA v
+                                               put cfg{pgm=(AssignY v'):ss}
+               (While cond body):ss      -> do put cfg{pgm=(If cond $ body ++ [While cond body]):ss}
+               (If (Bool True) body):ss  -> do put cfg{pgm=body ++ ss}
+               (If (Bool False) body):ss -> do put cfg{pgm=ss}
+               (If cond body):ss         -> do c' <- nextB cond
+                                               put cfg{pgm=(If c' body):ss}
+               _                         -> stuck
 
 
 -------------------------------------------------------------------------------
