@@ -30,9 +30,11 @@ ghc-options:
 - -Wmissing-home-modules
 - -Wpartial-fields
 - -Wredundant-constraints
+- -fplugin=LiquidHaskell
 
 library:
   source-dirs: src
+  build-depends: liquidhaskell
 
 executables:
   k-monad-exe:
