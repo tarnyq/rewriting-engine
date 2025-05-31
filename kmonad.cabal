@@ -1,4 +1,4 @@
-cabal-version: 2.2
+cabal-version: 1.12
 
 -- This file has been generated from package.yaml by hpack version 0.38.0.
 --
@@ -12,12 +12,10 @@ bug-reports:    https://github.com/githubuser/kmonad/issues
 author:         Author name here
 maintainer:     example@example.com
 copyright:      2025 Author name here
-license:        BSD-3-Clause
-license-file:   LICENSE
+license:        AllRightsReserved
 build-type:     Simple
 extra-source-files:
     README.md
-    CHANGELOG.md
 
 source-repository head
   type: git
@@ -27,8 +25,6 @@ library
   exposed-modules:
       Lib
   other-modules:
-      Paths_kmonad
-  autogen-modules:
       Paths_kmonad
   hs-source-dirs:
       src
@@ -40,8 +36,6 @@ library
 executable kmonad-exe
   main-is: Main.hs
   other-modules:
-      Paths_kmonad
-  autogen-modules:
       Paths_kmonad
   hs-source-dirs:
       app
@@ -55,8 +49,6 @@ test-suite kmonad-test
   type: exitcode-stdio-1.0
   main-is: Spec.hs
   other-modules:
-      Paths_kmonad
-  autogen-modules:
       Paths_kmonad
   hs-source-dirs:
       test

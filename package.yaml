@@ -1,14 +1,13 @@
 name:                kmonad
 version:             0.1.0.0
 github:              "githubuser/kmonad"
-license:             BSD-3-Clause
+license:             AllRightsReserved
 author:              "Author name here"
 maintainer:          "example@example.com"
 copyright:           "2025 Author name here"
 
 extra-source-files:
 - README.md
-- CHANGELOG.md
 
 # Metadata used when publishing your package
 # synopsis:            Short description of your package
