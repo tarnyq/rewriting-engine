@@ -1,6 +1,10 @@
 resolver: lts-23.24
 compiler: ghc-9.8.2
 
+#   This avoids annoying warnings if you happen to have Nix (which we don't
+#   use) in your path.
+notify-if-nix-on-path: false
+
 packages:
 - .
 
