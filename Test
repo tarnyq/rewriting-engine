@@ -14,4 +14,24 @@ elapsed() { echo $(( $(date +%s) - $elapsed_start )); }
 
 export PROJDIR=$(cd "$(dirname "$0")" && pwd -P)
 
+#   • We automatically install stack for users that don't have it on the
+#     principle that you very rarely want a different installation (e.g., a
+#     distro-packaged version), and even there it would get quite hairy
+#     because of us wanting particular Haskell versions.
+#   • This may need sudo access to install required system packages;
+#     there's no way around this.
+#   • This forces the install of the `stack` binary to ~/.local/bin/
+#     because we don't want to be inadvertantly affecting the version of
+#     stack that others on the system might be using. (If someone doesn't
+#     have that in their path; the installer will warn about this.)
+stack --version >/dev/null 2>&1 || {
+    echo '━━━━━ Installing Haskell Stack'
+    curl -sSL https://get.haskellstack.org/ \
+        | bash -s -- --quiet --dest $HOME/.local/bin/ \
+        || fail
+}
+
+echo '━━━━━ Build'
+#stack build || fail
+
 echo "OK ($(elapsed)s)"
