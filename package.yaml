@@ -15,6 +15,7 @@ extra-source-files:
 
 dependencies:
 - base >= 4.7 && < 5
+- liquidhaskell
 
 ghc-options:
 - -Wall                     # This is not acutally _all_ warnings, thus additions below.

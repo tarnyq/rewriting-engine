@@ -31,6 +31,16 @@ stack --version >/dev/null 2>&1 || {
         || fail
 }
 
+#   Liquid Haskell needs an SMT solver; we use Z3 as suggested, in part
+#   because it's widely available in many Linux distros. But there are
+#   issues with different versions being not quite right; we may want
+#   just to build this ourselves.
+z3 --version >/dev/null 2>&1 || {
+    echo '━━━━━ Installing Z3'
+    sudo apt install z3 \
+        || die 3 'Cannot `apt install z3`; try your own package manager?'
+}
+
 echo '━━━━━ Build'
 cd "$PROJDIR"
 #   We want to regularly build with the latest versions of our dependencies
