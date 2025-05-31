@@ -12,7 +12,24 @@ elapsed() { echo $(( $(date +%s) - $elapsed_start )); }
 
 ####################################################################
 
+clean() {
+    #   This handles some special cases where we have not yet stuck
+    #   everything under .build/ (and might not do so for .stack-work/
+    #   because people expect that to be in the root of the project dir).
+    rm -rf "$PROJDIR/.build/" "$PROJDIR/.stack-work/" "$PROJDIR/src/.liquid/"
+}
+
+####################################################################
+
 export PROJDIR=$(cd "$(dirname "$0")" && pwd -P)
+
+while [[ ${#@} -gt 0 ]]; do case "$1" in
+    --)     shift; break;;
+    -C|-c)  shift; clean;;
+    *)      break;;
+esac; done
+
+####################################################################
 
 #   • We automatically install stack for users that don't have it on the
 #     principle that you very rarely want a different installation (e.g., a
