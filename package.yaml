@@ -44,7 +44,7 @@ executables:
 tests:
   kmonad-test:
     main:                Spec.hs
-    source-dirs:         test
+    source-dirs:         unit-test
     ghc-options:
     - -threaded
     - -rtsopts
