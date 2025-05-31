@@ -32,6 +32,12 @@ stack --version >/dev/null 2>&1 || {
 }
 
 echo '━━━━━ Build'
-#stack build || fail
+cd "$PROJDIR"
+#   We want to regularly build with the latest versions of our dependencies
+#   so we can quickly see any problems they introduce. If rebuilding the
+#   lock file every time becomes too slow, it's fine to remove it just once
+#   per day or whatever.
+rm -f stack.yaml.lock
+stack build || fail
 
 echo "OK ($(elapsed)s)"

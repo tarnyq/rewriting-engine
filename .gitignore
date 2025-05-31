@@ -1,2 +1,6 @@
-.stack-work/
-*~
+/.stack-work/
+
+#   We generally do not want to be using a lock file on the main branch
+#   because we want to find out as soon as possible about problems introduced
+#   by new versions of our dependencies.
+/stack.yaml.lock
