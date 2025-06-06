@@ -27,8 +27,12 @@ Further general information and examples can be found in:
   the [lh-plugin-demo] repo ("Example Project 1" in the install docs above).
 * [lh-plugin-demo-client][] ("Example Project 2" from the install docs above).
 * The source code in [liquidhaskell]. You will want to check out the tag
-  for the release you're using, e.g., `v0.9.8.2`. (You can get a list of
-  all releases with `git tag | grep ^v`.)
+  for the release you're using, e.g., `v0.9.8.2` and ensure you do a
+  `git submodule update --init`.
+
+When working out what versions of things you want to put into `extra-deps`
+in `stack.yaml`, the best way to do this is to check out the source, update
+submodules, and `grep '^version:' *.cabal */*.cabal`.
 
 
 
