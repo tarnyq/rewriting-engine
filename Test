@@ -23,11 +23,27 @@ clean() {
 
 export PROJDIR=$(cd "$(dirname "$0")" && pwd -P)
 
+lhver=              # Switch to different version of Liquid Haskell.
 while [[ ${#@} -gt 0 ]]; do case "$1" in
-    --)     shift; break;;
-    -C|-c)  shift; clean;;
-    *)      break;;
+    --)             shift; break;;
+    -l|--lhver)     shift; lhver="$1"; shift; break;;
+    -C|-c)          shift; clean;;
+    *)              break;;
 esac; done
+
+[[ -n $lhver ]] && (
+    command cd "$PROJDIR"
+        for file in stack.yaml; do
+            vfile=lhver/$lhver-$file
+            if [[ -r lhver/$lhver-$file ]]; then
+                rm -f $file
+                ln -s $vfile $file
+                echo "$file → $(readlink $file)"
+            else
+                echo "Warning: $vfile not found; leaving existing file"
+            fi
+        done
+)
 
 ####################################################################
 
