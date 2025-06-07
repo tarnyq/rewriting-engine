@@ -2,6 +2,7 @@
 -- https://nikivazou.github.io/lh-course/Lecture_05_ProofsPrograms.html
 
 {-# OPTIONS_GHC -fplugin=LiquidHaskell #-}
+{-# OPTIONS_GHC -fplugin-opt=LiquidHaskell:--verbose #-}
 {-@ LIQUID "--reflection" @-}
 
 {-# OPTIONS_GHC -Wno-unused-top-binds #-}
