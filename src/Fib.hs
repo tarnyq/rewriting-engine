@@ -57,7 +57,7 @@ c _ = 9         -- LH can discover that e.g. 'negate 4' does not LH-typecheck
 -- {-@ cP :: { v:Proof | c 1 == 9   } @-}
    {-@ cP :: { v:Proof | c 1 == c 2 } @-}
 cP :: Proof
-cP = c 1 === 9 === c 2 *** QED
+cP = c 1 === 8 === c 2 *** QED
 
 -- This does not work: cP = trival *** QED
 --
