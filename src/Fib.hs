@@ -66,3 +66,26 @@ cP = c 1 === 9 === c 2 *** QED
 --
 --  The lemmas we provide are verified; if we change '9' to '8' above, LH
 --  will point out the error.
+
+----------------------------------------------------------------------
+-- Tutorial §5.5 Proofs by Natural Induction exercise
+
+{-@ reflect sumTo @-}
+{-@ sumTo :: lo:Nat -> hi:{Nat | lo <= hi} -> Nat / [hi]@-}
+sumTo :: Int -> Int -> Int
+--sumTo lo hi = if lo == hi then 0 else hi + sumTo lo (hi-1)
+sumTo lo hi
+    | lo == hi  = 0
+    | otherwise = hi + sumTo lo (hi-1)
+
+-- {-@ sumToN :: n:Nat -> { v:Proof | sumTo 0 n = n * (n + 1) / 2 } @-}
+-- { forall n:Nat. (sumToN n :: { sumTo 0 n = n * (n + 1) / 2 } @-}
+{-@ sumToN :: n:Nat -> { sumTo 0 n = n * (n + 1) / 2 } @-}
+sumToN :: Int -> Proof
+sumToN 0 =     sumTo 0 0        -- base case
+           === 0
+           *** QED
+sumToN n =         sumTo 0 n    -- inductive case
+           === n + sumTo 0 (n-1)            ? (sumToN (n-1))
+           === n + (n-1)*(n-1 + 1) `div` 2
+           *** QED
