@@ -43,6 +43,26 @@ with a Stackage nightly release) may work, and we would consider moving to
 that as a minimum version if we find that newer language extensions or
 other features significantly increase the usability of KMonad.
 
+### GHCi
+
+[GHCi] is GHC's REPL. When asked to load a source code file it will load
+the GHC-compiled version if that's up to date, otherwise it will load the
+source. It's useful for investigating and doing quick sanity checks of your
+code to convince yourself that the type system is doing what you think it
+is.
+
+In a Stack project it's typically started with `stack ghci` which will
+build and load all the project's modules. Useful options include:
+- `--no-load`: Do not load modules on startup. This is helpful if you want
+  to avoid building/loading everything but instead explicitly load part
+  of your project at the prompt.
+
+You will have available only the default exports from the modules loaded at
+startup. When examining an individual module, typically you want to use
+`:load MODULE|FILE` (or `:load!` to defer type errors) which will rebuild
+it and make all definitions (including non-exported ones) available as
+unqualified names in the current environment.
+
 
 
 <!-------------------------------------------------------------------->
@@ -52,6 +72,7 @@ other features significantly increase the usability of KMonad.
 <!-- Tools -->
 [Cabal]: https://www.haskell.org/cabal/
 [GHC]: https://www.haskell.org/ghc/
+[GHCi]: https://downloads.haskell.org/ghc/9.8.4/docs/users_guide/ghci.html
 [HPack]: https://github.com/sol/hpack
 [Hackage]: https://hackage.haskell.org/
 [LTS 23.24]: https://www.stackage.org/lts-23.24
