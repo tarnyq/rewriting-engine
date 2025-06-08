@@ -1,6 +1,8 @@
 #   HPack docs[1] don't describe options described in Cabal docs[2].
+#   Also see Stack docs[3] for package.yaml vs. stack.yaml usage.
 #   [1]: https://github.com/sol/hpack
 #   [2]: https://cabal.readthedocs.io/en/3.6/cabal-package.html
+#   [3]: https://docs.haskellstack.org/en/stable/topics/stack_yaml_vs_cabal_package_file/
 
 name:                kmonad
 version:             0.1.0.0
