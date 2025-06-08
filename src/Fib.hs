@@ -5,9 +5,6 @@
 {-@ LIQUID "--reflection" @-}
 
 {-# OPTIONS_GHC -Wno-unused-top-binds #-}
--- XXX Add this to package.yaml, when we figure out the syntax there.
-{-# LANGUAGE UnicodeSyntax #-}
-
 module Fib () where
 
 import Language.Haskell.Liquid.ProofCombinators
