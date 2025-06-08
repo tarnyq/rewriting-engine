@@ -13,10 +13,21 @@ elapsed() { echo $(( $(date +%s) - $elapsed_start )); }
 ####################################################################
 
 clean() {
-    #   This handles some special cases where we have not yet stuck
-    #   everything under .build/ (and might not do so for .stack-work/
-    #   because people expect that to be in the root of the project dir).
-    rm -rf "$PROJDIR/.build/" "$PROJDIR/.stack-work/" "$PROJDIR/src/.liquid/"
+    local cleantrees=(
+        "$PROJDIR"/.build/
+        #   We keep this here instead of putting it under .build/ because
+        #   we expect stand-alone `stack` invocations which will look for
+        #   it only here.
+        "$PROJDIR"/.stack-work/
+        #   Though generated files in the repo, distributions of specific
+        #   versions of the source would probably include these at these
+        #   exact locations. See .gitignore for more details.
+        "$PROJDIR"/stack.yaml.lock      # See .gitignore for details
+        "$PROJDIR"/*.cabal              #   on these two items.
+        #   It's not clear how to move this to a build directory.
+        "$PROJDIR/src/.liquid/"
+    )
+    rm -rf "${cleantrees[@]}"
 }
 
 ####################################################################
