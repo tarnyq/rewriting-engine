@@ -8,6 +8,11 @@ General QoL:
 - Easy way to specify to test that we want to start a `ghci` as if we'd
   done `:load src/BExp.hs` or whatever, so we can just start typing.
 
+Build system:
+- Combine common/version-specific info into `.build/stack.yaml` and use
+  `--stack-yaml` (or `$STACK_YAML`?) to use it, removing top-level
+  `stack.yaml` symlink.
+
 
 
 <!-------------------------------------------------------------------->
