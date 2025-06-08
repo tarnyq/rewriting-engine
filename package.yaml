@@ -1,3 +1,7 @@
+#   HPack docs[1] don't describe options described in Cabal docs[2].
+#   [1]: https://github.com/sol/hpack
+#   [2]: https://cabal.readthedocs.io/en/3.6/cabal-package.html
+
 name:                kmonad
 version:             0.1.0.0
 github:              nishantjr/kmonad
@@ -13,10 +17,15 @@ description: See the README for more details.
 extra-source-files:
 - README.md
 
-dependencies:
-- base >= 4.7 && < 5
-- liquidhaskell
-- liquid-prelude
+####################################################################
+#   Haskell and GHC configuration; library dependencies.
+#   For further info and references, see doc/haskell.md.
+
+default-extensions:         # Enabled in every module.
+  - StandaloneDeriving
+
+#   This is essentialy just documentation of what LANGUAGE pragmas we use.
+other-extensions: []
 
 ghc-options:
 - -Wall                     # This is not acutally _all_ warnings, thus additions below.
@@ -26,6 +35,14 @@ ghc-options:
 - -Wmissing-home-modules
 - -Wpartial-fields
 - -Wredundant-constraints
+
+dependencies:
+- base >= 4.7 && < 5
+- liquidhaskell
+- liquid-prelude
+
+####################################################################
+#   Libraries, executables, tests.
 
 library:
   source-dirs: src

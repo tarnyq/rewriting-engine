@@ -12,9 +12,6 @@
     [2]: https://github.com/runtimeverification/imp-semantics
 -}
 
--- XXX Add these to package.yaml, when we figure out the syntax there.
-{-# LANGUAGE StandaloneDeriving #-}
-
 {-# OPTIONS_GHC -Wno-unused-top-binds #-}
 module Imp () where
 
