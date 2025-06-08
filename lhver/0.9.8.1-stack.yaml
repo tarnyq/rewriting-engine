@@ -1,6 +1,5 @@
 #   LiquidHaskell 0.9.8.1 configuration from:
 #     https://github.com/ucsd-progsys/lh-plugin-demo/tree/main/stack
-#   Not yet properly working for symbolic execution.
 
 packages: [.]
 

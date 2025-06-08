@@ -1,5 +1,4 @@
 #   LiquidHaskell 0.9.8.2 configuration from: ???.
-#   Not yet properly working for symbolic execution.
 
 packages: [.]
 
