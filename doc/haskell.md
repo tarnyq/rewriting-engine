@@ -51,11 +51,15 @@ source. It's useful for investigating and doing quick sanity checks of your
 code to convince yourself that the type system is doing what you think it
 is.
 
-In a Stack project it's typically started with `stack ghci` which will
-build and load all the project's modules. Useful options include:
+You can get the path to the GHCi intepreter used in your Stack project with
+`stack exec -- which ghci`; execute the output of this to run a "bare"
+`ghci` without the Stack environment.
+
+Run the intepreter in the environment with `stack ghci`, which will build
+and load all the project's modules. Useful options `stack ghci` include:
 - `--no-load`: Do not load modules on startup. This is helpful if you want
-  to avoid building/loading everything but instead explicitly load part
-  of your project at the prompt.
+  to avoid building/loading everything but instead explicitly load part of
+  your project at the prompt.
 
 You will have available only the default exports from the modules loaded at
 startup. When examining an individual module, typically you want to use

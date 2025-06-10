@@ -5,8 +5,6 @@ General QoL:
 - Easy way to specify to test that we want to start a `ghci` as if we'd
   done `:load src/BExp.hs` or whatever, so we can just start typing.
 - Stack things to investigate and document:
-  - `stack exec -- which ghci` to find paths to programs you want to run
-    without the Stack environment.
   - [Stack's script interpreter], `stack FNAME`, where _fname_ is a Haskell
     source file that has been marked executable (`chmod +x …`).
 
