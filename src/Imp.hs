@@ -64,10 +64,10 @@ infixl 3  :&&                   -- Should be RA! But broken this way in KImp.
 --  like 'Block'.)
 --  We provide this helper function to do the same thing as the KImp parser.
 mkStmt :: [Stmt] -> Stmt
-mkStmt stmtList = program (reverse stmtList) where
-    program []     = error "programs must have at least one statement"
-    program [s]    = s
-    program (s:ss) = Sequence (program ss) s
+mkStmt stmtList = statements (reverse stmtList) where
+    statements []     = error "programs must have at least one statement"
+    statements [s]    = s
+    statements (s:ss) = Sequence (statements ss) s
 
 --  Make all this showable just for convenience and debugging.
 deriving instance Show AExp
@@ -99,3 +99,26 @@ sum_imp = Pgm ids stmt where
                 , "n" := (Var "n" :+ Negate 1)
                 ]))
          ]
+
+----------------------------------------------------------------------
+-- Semantics
+
+data State = State { program :: Pgm }  deriving Show
+type Rewrite = State -> Maybe State
+type Semantics = [Rewrite]
+
+imp :: Semantics
+imp = []
+
+eval_sum_imp :: State
+eval_sum_imp = eval imp $ State sum_imp
+
+----------------------------------------------------------------------
+-- Library Function (Not part of Imp)
+
+eval :: Semantics -> State -> State
+eval rewrites state = eval' rewrites where
+    eval' []     = state
+    eval' (r:rs) = case (r state) of
+                        Nothing     -> eval' rs
+                        Just state' -> eval rewrites state'
