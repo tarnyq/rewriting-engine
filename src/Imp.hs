@@ -49,7 +49,7 @@ data Stmts  = Block Block
             | Id := AExp
             | If BExp Block Block
             | While BExp Block
-            | Sequence Stmts Stmts
+            | StPair Stmts Stmts
 data Pgm    = Pgm Ids Stmts
 type Ids    = [Id]
 
@@ -69,7 +69,7 @@ mkStmts :: [Stmts] -> Stmts
 mkStmts stmtList = statements (reverse stmtList)  where
     statements []     = error "programs must have at least one statement"
     statements [s]    = s
-    statements (s:ss) = Sequence (statements ss) s
+    statements (s:ss) = StPair (statements ss) s
 
 --  Make all this showable just for convenience and debugging.
 deriving instance Show AExp
@@ -118,8 +118,8 @@ liftStmts f state =
 rassoc :: Rewrite
 rassoc = liftStmts rassoc'  where
     rassoc' :: Stmts -> Maybe Stmts
-    rassoc' (Sequence (Sequence s1 s2) s3)
-            = Just (Sequence s1 (Sequence s2 s3))
+    rassoc' (StPair (StPair s1 s2) s3)
+            = Just $ StPair s1 (StPair s2 s3)
     rassoc' _ = Nothing
 
 imp :: Semantics
