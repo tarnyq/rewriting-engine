@@ -15,7 +15,7 @@
 {-# OPTIONS_GHC -Wno-unused-top-binds #-}
 module Imp () where
 
-import Data.Map (Map, fromList)
+import Data.Map (Map, insert, fromList)
 
 {----------------------------------------------------------------------
     Abstract Syntax
@@ -116,20 +116,27 @@ eval_imp state = eval imp $ impInitState state
 ----------------------------------------
 -- User provided Language definition
 
-data State = State { stmt :: Stmts, store :: Map Id Int }  deriving Show
+data State = State { stmt :: Stmts, store :: Map Id Integer }  deriving Show
 
 impInitState :: Pgm -> State
 impInitState (Pgm ids stmt) = State stmt (initStore ids)  where
     initStore _ = fromList $ zip ids (repeat 0)
 
 imp :: Semantics
-imp =   [ liftStmts rassoc
+imp =   [ assign,
+          liftStmts rassoc
         ]
     where
         rassoc :: Stmts -> Maybe Stmts
         rassoc (StPair (StPair s1 s2) s3)
                = Just $ StPair s1 (StPair s2 s3)
         rassoc _ = Nothing
+
+        assign :: State -> Maybe State
+        assign (State (StPair (id := Int i) s2) store)
+            = Just $ State s2 (insert id i store)
+        assign _ = Nothing
+
 
 --  XXX KMonad should generate this.
 liftStmts :: (Stmts -> Maybe Stmts) -> State -> Maybe State
