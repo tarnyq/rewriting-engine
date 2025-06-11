@@ -109,12 +109,6 @@ data State = State { stmt :: Stmts, store :: Map Id Int }  deriving Show
 type Rewrite = State -> Maybe State
 type Semantics = [Rewrite]
 
-liftStmts :: (Stmts -> Maybe Stmts) -> State -> Maybe State
-liftStmts f state =
-    case f (stmt state) of
-           Just stmt' -> Just $ state { stmt = stmt' }
-           Nothing    -> Nothing
-
 rassoc :: Rewrite
 rassoc = liftStmts rassoc'  where
     rassoc' :: Stmts -> Maybe Stmts
@@ -126,11 +120,25 @@ imp :: Semantics
 imp =   [ rassoc
         ]
 
-eval_imp :: Pgm -> State
-eval_imp (Pgm ids stmt)
-    = eval imp $ State { stmt = stmt, store = initStore ids }  where
+--  XXX
+
+
+liftStmts :: (Stmts -> Maybe Stmts) -> State -> Maybe State
+liftStmts f state =
+    case f (stmt state) of
+           Just stmt' -> Just $ state { stmt = stmt' }
+           Nothing    -> Nothing
+
+-- Generic parts will be extracted from this.
+impInitState :: Pgm -> State
+impInitState (Pgm ids stmt) = State stmt (initStore ids)  where
     initStore _ = fromList $ zip ids (repeat 0)
 
+eval_imp :: Pgm -> State
+eval_imp state
+    = eval imp $ impInitState state
+
+--  Sample: evaluate sample program.
 eval_sum_imp :: State
 eval_sum_imp = eval_imp sum_imp
 
