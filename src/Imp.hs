@@ -43,14 +43,14 @@ data BExp   = Bool Bool
             | Not BExp
          -- | Parens BExp       -- Needed for concrete syntax only.
             | BExp :&& BExp
-data Block  = StmtBlock Stmt    -- KImp 'Stmt' really should be 'Stmts'. :-/
+data Block  = StmtsBlock Stmts  -- Renamed from 'Stmt' in KImp
             | EmptyBlock
-data Stmt   = Block Block
+data Stmts  = Block Block
             | Id := AExp
             | If BExp Block Block
             | While BExp Block
-            | Sequence Stmt Stmt
-data Pgm    = Pgm Ids Stmt
+            | Sequence Stmts Stmts
+data Pgm    = Pgm Ids Stmts
 type Ids    = [Id]
 
                                 -- Same precedence values as the prelude.
@@ -61,12 +61,12 @@ infixl 3  :&&                   -- Should be RA! But broken this way in KImp.
 
 --  The KImp parser doesn't produce a list of statements, but instead, via
 --  right-associative parsing, produces a left-skewing nearly degenerate
---  binary tree. (Yes, this is weird, but a consequence of 'Stmt' rather
---  than 'Block' being the root of the AST; a 'Stmt' must be able to act
+--  binary tree. (Yes, this is weird, but a consequence of 'Stmts' rather
+--  than 'Block' being the root of the AST; a 'Stmts' must be able to act
 --  like 'Block'.)
 --  We provide this helper function to do the same thing as the KImp parser.
-mkStmt :: [Stmt] -> Stmt
-mkStmt stmtList = statements (reverse stmtList)  where
+mkStmts :: [Stmts] -> Stmts
+mkStmts stmtList = statements (reverse stmtList)  where
     statements []     = error "programs must have at least one statement"
     statements [s]    = s
     statements (s:ss) = Sequence (statements ss) s
@@ -75,7 +75,7 @@ mkStmt stmtList = statements (reverse stmtList)  where
 deriving instance Show AExp
 deriving instance Show BExp
 deriving instance Show Block
-deriving instance Show Stmt     -- Not a list, so 'showList' override pointless.
+deriving instance Show Stmts    -- Not a list, so 'showList' override pointless.
 deriving instance Show Pgm
 
 {----------------------------------------------------------------------
@@ -90,34 +90,34 @@ deriving instance Show Pgm
         }
 -}
 sum_imp :: Pgm
-sum_imp = Pgm ids stmt  where
-    ids  = ["n", "sum"]
-    stmt = mkStmt
-         [ "n" := Int 100
-         , "sum" := Int 0
-         , While (Not (Var "n" :<= (Int 0)))
-              (StmtBlock (mkStmt
-                [ "sum" := (Var "sum" :+ Var "n")
-                , "n" := (Var "n" :+ Negate 1)
-                ]))
-         ]
+sum_imp = Pgm ids stmts  where
+    ids   = ["n", "sum"]
+    stmts = mkStmts
+          [ "n" := Int 100
+          , "sum" := Int 0
+          , While (Not (Var "n" :<= (Int 0)))
+               (StmtsBlock (mkStmts
+                 [ "sum" := (Var "sum" :+ Var "n")
+                 , "n" := (Var "n" :+ Negate 1)
+                 ]))
+          ]
 
 ----------------------------------------------------------------------
 -- Semantics
 
-data State = State { stmt :: Stmt, store :: Map Id Int }  deriving Show
+data State = State { stmt :: Stmts, store :: Map Id Int }  deriving Show
 type Rewrite = State -> Maybe State
 type Semantics = [Rewrite]
 
-liftStmt :: (Stmt -> Maybe Stmt) -> State -> Maybe State
-liftStmt f state =
+liftStmts :: (Stmts -> Maybe Stmts) -> State -> Maybe State
+liftStmts f state =
     case f (stmt state) of
            Just stmt' -> Just $ state { stmt = stmt' }
            Nothing    -> Nothing
 
 rassoc :: Rewrite
-rassoc = liftStmt rassoc'  where
-    rassoc' :: Stmt -> Maybe Stmt
+rassoc = liftStmts rassoc'  where
+    rassoc' :: Stmts -> Maybe Stmts
     rassoc' (Sequence (Sequence s1 s2) s3)
             = Just (Sequence s1 (Sequence s2 s3))
     rassoc' _ = Nothing
