@@ -116,11 +116,13 @@ eval_imp state = eval imp $ impInitState state
 ----------------------------------------
 -- User provided Language definition
 
-data State = State { k :: [Stmts], store :: Map Id Integer }  deriving Show
-
+data State = State { k :: [Stmts], store :: Store }  deriving Show
 impInitState :: Pgm -> State
-impInitState (Pgm ids pgm) = State [pgm] (initStore ids)  where
-    initStore ids = fromList $ zip ids (repeat 0)
+impInitState (Pgm ids pgm) = State [pgm] (impInitStore ids)  where
+
+type Store = Map Id Integer
+impInitStore :: [Id] -> Store
+impInitStore ids = fromList $ zip ids (repeat 0)
 
 imp :: Semantics State
 imp =   [ assign,
