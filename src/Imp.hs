@@ -15,6 +15,8 @@
 {-# OPTIONS_GHC -Wno-unused-top-binds #-}
 module Imp () where
 
+import Data.Map (Map, fromList)
+
 {----------------------------------------------------------------------
     Abstract Syntax
 
@@ -64,7 +66,7 @@ infixl 3  :&&                   -- Should be RA! But broken this way in KImp.
 --  like 'Block'.)
 --  We provide this helper function to do the same thing as the KImp parser.
 mkStmt :: [Stmt] -> Stmt
-mkStmt stmtList = statements (reverse stmtList) where
+mkStmt stmtList = statements (reverse stmtList)  where
     statements []     = error "programs must have at least one statement"
     statements [s]    = s
     statements (s:ss) = Sequence (statements ss) s
@@ -88,7 +90,7 @@ deriving instance Show Pgm
         }
 -}
 sum_imp :: Pgm
-sum_imp = Pgm ids stmt where
+sum_imp = Pgm ids stmt  where
     ids  = ["n", "sum"]
     stmt = mkStmt
          [ "n" := Int 100
@@ -103,15 +105,34 @@ sum_imp = Pgm ids stmt where
 ----------------------------------------------------------------------
 -- Semantics
 
-data State = State { program :: Pgm }  deriving Show
+data State = State { stmt :: Stmt, store :: Map Id Int }  deriving Show
 type Rewrite = State -> Maybe State
 type Semantics = [Rewrite]
 
+liftStmt :: (Stmt -> Maybe Stmt) -> State -> Maybe State
+liftStmt f state =
+    case f (stmt state) of
+           Just stmt' -> Just $ state { stmt = stmt' }
+           Nothing    -> Nothing
+
+rassoc :: Rewrite
+rassoc = liftStmt rassoc'  where
+    rassoc' :: Stmt -> Maybe Stmt
+    rassoc' (Sequence (Sequence s1 s2) s3)
+            = Just (Sequence s1 (Sequence s2 s3))
+    rassoc' _ = Nothing
+
 imp :: Semantics
-imp = []
+imp =   [ rassoc
+        ]
+
+eval_imp :: Pgm -> State
+eval_imp (Pgm ids stmt)
+    = eval imp $ State { stmt = stmt, store = initStore ids }  where
+    initStore _ = fromList $ zip ids (repeat 0)
 
 eval_sum_imp :: State
-eval_sum_imp = eval imp $ State sum_imp
+eval_sum_imp = eval_imp sum_imp
 
 ----------------------------------------------------------------------
 -- Library Function (Not part of Imp)
