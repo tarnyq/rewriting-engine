@@ -120,7 +120,7 @@ data State = State { k :: [Stmts], store :: Map Id Integer }  deriving Show
 
 impInitState :: Pgm -> State
 impInitState (Pgm ids pgm) = State [pgm] (initStore ids)  where
-    initStore _ = fromList $ zip ids (repeat 0)
+    initStore ids = fromList $ zip ids (repeat 0)
 
 imp :: Semantics State
 imp =   [ assign,
