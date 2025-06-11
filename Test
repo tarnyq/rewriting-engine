@@ -35,10 +35,14 @@ clean() {
 export PROJDIR=$(cd "$(dirname "$0")" && pwd -P)
 
 lhver=              # Switch to different version of Liquid Haskell.
+ghci_modules=()     # Run ghci after build, :load! the given modules, and
+ghci_exprs=()       #   then evaluate the given expressions.
 while [[ ${#@} -gt 0 ]]; do case "$1" in
     --)             shift; break;;
-    -l|--lhver)     shift; lhver="$1"; shift; break;;
     -C|-c)          shift; clean;;
+    -l|--lhver)     shift; lhver="$1"; shift;;
+    -m|--module)    shift; ghci_modules+=("$1"); shift;;
+    -e|--expr)      shift; ghci_exprs+=("$1"); shift;;
     *)              break;;
 esac; done
 
@@ -93,5 +97,13 @@ cd "$PROJDIR"
 #   per day or whatever.
 rm -f stack.yaml.lock
 stack build || fail
+
+[[ -n ${ghci_exprs[*]} ]] && {
+    ghci_inputs=()
+    [[ -n ${ghci_modules[*]} ]] && ghci_inputs+=(":load! ${ghci_modules[*]}")
+    ghci_inputs+=("Prelude.putStrLn $ Prelude.replicate 79 '─'")
+    ghci_inputs+=("${ghci_exprs[@]}")
+    printf '%s\n' "${ghci_inputs[@]}" | stack ghci --no-load || fail
+}
 
 echo "OK ($(elapsed)s)"
