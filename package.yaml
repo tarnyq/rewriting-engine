@@ -31,6 +31,8 @@ other-extensions: []
 
 ghc-options:
   - -Wall                   # Not actually *all* warnings, thus additions below.
+  - -Wno-name-shadowing     # Having to avoid collisions w/top-level names
+                            #    is more awkward than helpful.
   - -Wcompat                # Helps with future compatibility.
   - -Widentities            # Prelude numeric conversions (`toInteger` etc.) to same type.
   - -Wmissing-export-lists  # Ought to be in `all`, we think.
@@ -40,6 +42,7 @@ ghc-options:
 
 dependencies:
   - base >= 4.7 && < 5
+  - containers
   - liquidhaskell
   - liquid-prelude
 
