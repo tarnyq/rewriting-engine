@@ -105,38 +105,38 @@ sum_imp = Pgm ids stmts  where
 ----------------------------------------------------------------------
 -- Semantics
 
-data State = State { stmt :: Stmts, store :: Map Id Int }  deriving Show
+-- Generic parts will be extracted from this (Rewrite α, etc.).
 type Rewrite = State -> Maybe State
 type Semantics = [Rewrite]
 
-rassoc :: Rewrite
-rassoc = liftStmts rassoc'  where
-    rassoc' :: Stmts -> Maybe Stmts
-    rassoc' (StPair (StPair s1 s2) s3)
-            = Just $ StPair s1 (StPair s2 s3)
-    rassoc' _ = Nothing
+-- Evaluate a program using Imp semantics.
+eval_imp :: Pgm -> State
+eval_imp state = eval imp $ impInitState state
+
+----------------------------------------
+-- User provided Language definition
+
+data State = State { stmt :: Stmts, store :: Map Id Int }  deriving Show
+
+impInitState :: Pgm -> State
+impInitState (Pgm ids stmt) = State stmt (initStore ids)  where
+    initStore _ = fromList $ zip ids (repeat 0)
 
 imp :: Semantics
-imp =   [ rassoc
+imp =   [ liftStmts rassoc
         ]
+    where
+        rassoc :: Stmts -> Maybe Stmts
+        rassoc (StPair (StPair s1 s2) s3)
+               = Just $ StPair s1 (StPair s2 s3)
+        rassoc _ = Nothing
 
---  XXX
-
-
+--  XXX KMonad should generate this.
 liftStmts :: (Stmts -> Maybe Stmts) -> State -> Maybe State
 liftStmts f state =
     case f (stmt state) of
            Just stmt' -> Just $ state { stmt = stmt' }
            Nothing    -> Nothing
-
--- Generic parts will be extracted from this.
-impInitState :: Pgm -> State
-impInitState (Pgm ids stmt) = State stmt (initStore ids)  where
-    initStore _ = fromList $ zip ids (repeat 0)
-
-eval_imp :: Pgm -> State
-eval_imp state
-    = eval imp $ impInitState state
 
 --  Sample: evaluate sample program.
 eval_sum_imp :: State
