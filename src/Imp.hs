@@ -15,7 +15,7 @@
 {-# OPTIONS_GHC -Wno-unused-top-binds #-}
 module Imp () where
 
-import Data.Map (Map, insert, fromList)
+import Data.Map (Map, findWithDefault, fromList, insert, member)
 
 {----------------------------------------------------------------------
     Abstract Syntax
@@ -138,11 +138,14 @@ data KItem = Stmts Stmts
 
 imp :: Semantics State
 imp =   [ assign
+        , lookupVar
         , liftK     seqStmt
         , liftStmts while
         , liftK     ifHeat
         , liftStmts ifT
         , liftStmts ifF
+        , liftK     notHeat
+        , liftK     gtHeat
         ]
     where
         seqStmt :: Rewrite K
@@ -173,6 +176,23 @@ imp =   [ assign
         ifHeat ((Stmts (If cond stmtsTrue stmtsFalse)):rest)
                = Just $ (BExp cond):(Stmts (If BHole stmtsTrue stmtsFalse)):rest
         ifHeat _ = Nothing
+
+        notHeat :: Rewrite K
+        notHeat ((BExp (Not (Bool _))):_) = Nothing
+        notHeat ((BExp (Not bexp)):rest)
+               = Just $ (BExp bexp):(BExp (Not BHole)):rest
+        notHeat _ = Nothing
+
+        gtHeat :: Rewrite K
+        gtHeat ((BExp (Int _ :<= _)):_) = Nothing
+        gtHeat ((BExp (aexp :<= rhs)):rest)
+               = Just $ (AExp aexp):(BExp (AHole :<= rhs)):rest
+        gtHeat _ = Nothing
+
+        lookupVar :: Rewrite State
+        lookupVar (State ((AExp (Var x)):rest) store) | member x store
+             = Just $ State ((AExp $ Int $ findWithDefault undefined x store):rest) store
+        lookupVar _ = Nothing
 
 
 --  XXX KMonad should generate this.
