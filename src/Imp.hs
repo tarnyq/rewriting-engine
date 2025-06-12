@@ -105,9 +105,9 @@ sum_imp = Pgm ids stmts  where
 ----------------------------------------------------------------------
 -- Semantics
 
--- Generic parts will be extracted from this (Rewrite α, etc.).
-type Rewrite = State -> Maybe State
-type Semantics = [Rewrite]
+-- Generic parts
+type Rewrite a = a -> Maybe a
+type Semantics a = [Rewrite a]
 
 -- Evaluate a program using Imp semantics.
 eval_imp :: Pgm -> State
@@ -122,24 +122,24 @@ impInitState :: Pgm -> State
 impInitState (Pgm ids pgm) = State [pgm] (initStore ids)  where
     initStore _ = fromList $ zip ids (repeat 0)
 
-imp :: Semantics
+imp :: Semantics State
 imp =   [ assign,
           liftK seqStmt
         ]
     where
-        seqStmt :: [Stmts] -> Maybe [Stmts]
+        seqStmt :: Rewrite [Stmts]
         seqStmt ((StPair s1 s2):rest)
               = Just $ s1:s2:rest
         seqStmt _ = Nothing
 
-        assign :: State -> Maybe State
+        assign :: Rewrite State
         assign (State ((id := Int i):rest) store)
              = Just $ State rest (insert id i store)
         assign _ = Nothing
 
 
 --  XXX KMonad should generate this.
-liftK :: ([Stmts] -> Maybe [Stmts]) -> State -> Maybe State
+liftK :: (Rewrite [Stmts]) -> Rewrite State
 liftK f state =
     case f (k state) of
            Just k' -> Just $ state { k = k' }
@@ -152,7 +152,7 @@ eval_sum_imp = eval_imp sum_imp
 ----------------------------------------------------------------------
 -- Library Function (Not part of Imp)
 
-eval :: Semantics -> State -> State
+eval :: Semantics a -> a -> a
 eval rewrites state = eval' rewrites where
     eval' []     = state
     eval' (r:rs) = case (r state) of
