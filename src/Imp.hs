@@ -116,33 +116,33 @@ eval_imp state = eval imp $ impInitState state
 ----------------------------------------
 -- User provided Language definition
 
-data State = State { stmt :: Stmts, store :: Map Id Integer }  deriving Show
+data State = State { k :: [Stmts], store :: Map Id Integer }  deriving Show
 
 impInitState :: Pgm -> State
-impInitState (Pgm ids stmt) = State stmt (initStore ids)  where
+impInitState (Pgm ids pgm) = State [pgm] (initStore ids)  where
     initStore _ = fromList $ zip ids (repeat 0)
 
 imp :: Semantics
 imp =   [ assign,
-          liftStmts rassoc
+          liftK seqStmt
         ]
     where
-        rassoc :: Stmts -> Maybe Stmts
-        rassoc (StPair (StPair s1 s2) s3)
-               = Just $ StPair s1 (StPair s2 s3)
-        rassoc _ = Nothing
+        seqStmt :: [Stmts] -> Maybe [Stmts]
+        seqStmt ((StPair s1 s2):rest)
+              = Just $ s1:s2:rest
+        seqStmt _ = Nothing
 
         assign :: State -> Maybe State
-        assign (State (StPair (id := Int i) s2) store)
-            = Just $ State s2 (insert id i store)
+        assign (State ((id := Int i):rest) store)
+             = Just $ State rest (insert id i store)
         assign _ = Nothing
 
 
 --  XXX KMonad should generate this.
-liftStmts :: (Stmts -> Maybe Stmts) -> State -> Maybe State
-liftStmts f state =
-    case f (stmt state) of
-           Just stmt' -> Just $ state { stmt = stmt' }
+liftK :: ([Stmts] -> Maybe [Stmts]) -> State -> Maybe State
+liftK f state =
+    case f (k state) of
+           Just k' -> Just $ state { k = k' }
            Nothing    -> Nothing
 
 --  Sample: evaluate sample program.
