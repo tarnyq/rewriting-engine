@@ -127,8 +127,11 @@ impInitStore ids = fromList $ zip ids (repeat 0)
 type K = [Stmts]
 
 imp :: Semantics State
-imp =   [ assign,
-          liftK seqStmt
+imp =   [ assign
+        , liftK seqStmt
+        , liftK while
+        , liftK ifT
+        , liftK ifF
         ]
     where
         seqStmt :: Rewrite K
@@ -141,6 +144,20 @@ imp =   [ assign,
              = Just $ State rest (insert id i store)
         assign _ = Nothing
 
+        while :: Rewrite K
+        while ((While cond body):rest)
+            = Just $ (If cond (StmtsBlock $ StPair (Block body) (While cond body)) EmptyBlock):rest
+        while _ = Nothing
+
+        ifT :: Rewrite K
+        ifT ((If (Bool True) stmtsTrue _):rest)
+          = Just $ (Block stmtsTrue):rest
+        ifT _ = Nothing
+
+        ifF :: Rewrite K
+        ifF ((If (Bool False) _ stmtsFalse):rest)
+          = Just $ (Block stmtsFalse):rest
+        ifF _ = Nothing
 
 --  XXX KMonad should generate this.
 liftK :: (Rewrite K) -> Rewrite State
