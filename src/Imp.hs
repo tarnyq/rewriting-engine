@@ -137,15 +137,29 @@ data KItem = Stmts Stmts
            deriving Show
 
 imp :: Semantics State
-imp =   [ assign
-        , lookupVar
+imp =   [ liftK     assignHeat
+        , liftK     assignCool
+        ,           assign
+        ,           lookupVar
         , liftK     seqStmt
         , liftStmts while
         , liftK     ifHeat
+        , liftK     ifCool
         , liftStmts ifT
         , liftStmts ifF
         , liftK     notHeat
-        , liftK     gtHeat
+        , liftK     notCool
+        , liftBExp  notBExp
+        , liftK     leHeat
+        , liftK     leCool
+        , liftBExp  le
+        , liftK     addHeatL
+        , liftK     addCoolL
+        , liftK     addHeatR
+        , liftK     addCoolR
+        , liftAExp  add
+        , liftAExp  negate
+        , liftStmts block
         ]
     where
         seqStmt :: Rewrite K
@@ -157,6 +171,18 @@ imp =   [ assign
         assign (State ((Stmts (id := Int i)):rest) store)
              = Just $ State rest (insert id i store)
         assign _ = Nothing
+
+        assignHeat :: Rewrite K
+        assignHeat ((Stmts (_ := Int _)):_) = Nothing
+        assignHeat ((Stmts (id := rhs)):rest)
+               = Just $ (AExp rhs):(Stmts (id := AHole)):rest
+        assignHeat _ = Nothing
+
+        assignCool :: Rewrite K
+        assignCool ((AExp (Int rhs)):(Stmts (id := AHole)):rest)
+               = Just $ (Stmts (id := (Int rhs))):rest
+        assignCool _ = Nothing
+
 
         while :: Rewrite Stmts
         while (While cond body)
@@ -177,22 +203,80 @@ imp =   [ assign
                = Just $ (BExp cond):(Stmts (If BHole stmtsTrue stmtsFalse)):rest
         ifHeat _ = Nothing
 
+        ifCool :: Rewrite K
+        ifCool ((BExp (Bool b)):(Stmts (If BHole stmtsTrue stmtsFalse)):rest)
+               = Just $ ((Stmts (If (Bool b) stmtsTrue stmtsFalse)):rest)
+        ifCool _ = Nothing
+
         notHeat :: Rewrite K
         notHeat ((BExp (Not (Bool _))):_) = Nothing
         notHeat ((BExp (Not bexp)):rest)
                = Just $ (BExp bexp):(BExp (Not BHole)):rest
         notHeat _ = Nothing
 
-        gtHeat :: Rewrite K
-        gtHeat ((BExp (Int _ :<= _)):_) = Nothing
-        gtHeat ((BExp (aexp :<= rhs)):rest)
+        notCool :: Rewrite K
+        notCool ((BExp (Bool b)):(BExp (Not BHole)):rest)
+               = Just $ ((BExp (Not (Bool b))):rest)
+        notCool _ = Nothing
+
+        notBExp :: Rewrite BExp
+        notBExp (Not (Bool b)) = Just $ (Bool (not b))
+        notBExp _ = Nothing
+
+        leHeat :: Rewrite K
+        leHeat ((BExp (Int _ :<= _)):_) = Nothing
+        leHeat ((BExp (aexp :<= rhs)):rest)
                = Just $ (AExp aexp):(BExp (AHole :<= rhs)):rest
-        gtHeat _ = Nothing
+        leHeat _ = Nothing
+
+        leCool :: Rewrite K
+        leCool ((AExp (Int i)):(BExp (AHole :<= rhs)):rest)
+               = Just $ (BExp (Int i :<= rhs)):rest
+        leCool _ = Nothing
+
+        le :: Rewrite BExp
+        le (Int i :<= Int j) = Just $ (Bool (i <= j))
+        le _ = Nothing
+
+        addHeatL :: Rewrite K
+        addHeatL ((AExp (Int _ :+ _)):_) = Nothing
+        addHeatL ((AExp (lhs :+ rhs)):rest)
+               = Just $ (AExp lhs):(AExp (AHole :+ rhs)):rest
+        addHeatL _ = Nothing
+
+        addCoolL :: Rewrite K
+        addCoolL ((AExp (Int i)):(AExp (AHole :+ rhs)):rest)
+               = Just $ (AExp (Int i :+ rhs)):rest
+        addCoolL _ = Nothing
+
+        addHeatR :: Rewrite K
+        addHeatR ((AExp (Int _ :+ Int _)):_) = Nothing
+        addHeatR ((AExp (Int lhs :+ rhs)):rest)
+               = Just $ (AExp rhs):(AExp (Int lhs :+ AHole)):rest
+        addHeatR _ = Nothing
+
+        addCoolR :: Rewrite K
+        addCoolR ((AExp (Int rhs)):(AExp (Int lhs :+ AHole)):rest)
+               = Just $ (AExp (Int lhs :+ Int rhs)):rest
+        addCoolR _ = Nothing
+
+        add :: Rewrite AExp
+        add (Int i :+ Int j) = Just $ (Int (i + j))
+        add _ = Nothing
+
+        negate :: Rewrite AExp
+        negate (Negate i) = Just $ (Int (-1 * i))
+        negate _ = Nothing
+
 
         lookupVar :: Rewrite State
         lookupVar (State ((AExp (Var x)):rest) store) | member x store
              = Just $ State ((AExp $ Int $ findWithDefault undefined x store):rest) store
         lookupVar _ = Nothing
+
+        block :: Rewrite Stmts
+        block (Block (StmtsBlock s)) = Just s
+        block _ = Nothing
 
 
 --  XXX KMonad should generate this.
@@ -207,6 +291,22 @@ liftStmts f state =
     case state of (State ((Stmts s):rest) _) ->
                     case f s of
                         Just s' -> Just $ state { k = ((Stmts s'):rest) }
+                        Nothing -> Nothing
+                  _ -> Nothing
+
+liftBExp :: Rewrite BExp -> Rewrite State
+liftBExp f state =
+    case state of (State ((BExp s):rest) _) ->
+                    case f s of
+                        Just s' -> Just $ state { k = ((BExp s'):rest) }
+                        Nothing -> Nothing
+                  _ -> Nothing
+
+liftAExp :: Rewrite AExp -> Rewrite State
+liftAExp f state =
+    case state of (State ((AExp s):rest) _) ->
+                    case f s of
+                        Just s' -> Just $ state { k = ((AExp s'):rest) }
                         Nothing -> Nothing
                   _ -> Nothing
 
