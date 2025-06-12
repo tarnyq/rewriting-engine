@@ -116,7 +116,7 @@ eval_imp state = eval imp $ impInitState state
 ----------------------------------------
 -- User provided Language definition
 
-data State = State { k :: [Stmts], store :: Store }  deriving Show
+data State = State { k :: K, store :: Store }  deriving Show
 impInitState :: Pgm -> State
 impInitState (Pgm ids pgm) = State [pgm] (impInitStore ids)  where
 
@@ -124,12 +124,14 @@ type Store = Map Id Integer
 impInitStore :: [Id] -> Store
 impInitStore ids = fromList $ zip ids (repeat 0)
 
+type K = [Stmts]
+
 imp :: Semantics State
 imp =   [ assign,
           liftK seqStmt
         ]
     where
-        seqStmt :: Rewrite [Stmts]
+        seqStmt :: Rewrite K
         seqStmt ((StPair s1 s2):rest)
               = Just $ s1:s2:rest
         seqStmt _ = Nothing
@@ -141,7 +143,7 @@ imp =   [ assign,
 
 
 --  XXX KMonad should generate this.
-liftK :: (Rewrite [Stmts]) -> Rewrite State
+liftK :: (Rewrite K) -> Rewrite State
 liftK f state =
     case f (k state) of
            Just k' -> Just $ state { k = k' }
