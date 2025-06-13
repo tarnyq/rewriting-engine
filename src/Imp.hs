@@ -38,11 +38,17 @@ data AExp   = Int Integer
             | AExp :/ AExp
          -- | Parens AExp       -- Needed for concrete syntax only.
             | AExp :+ AExp
+
+            | AHole             -- XXX Needed to define strictness.
+                                -- In K, these are automatically generated
+                                -- by the strict/seqstrict attributes
 data BExp   = Bool Bool
             | AExp :<= AExp
             | Not BExp
          -- | Parens BExp       -- Needed for concrete syntax only.
             | BExp :&& BExp
+
+            | BHole             -- XXX Needed to define strictness
 data Block  = StmtsBlock Stmts  -- Renamed from 'Stmt' in KImp
             | EmptyBlock
 data Stmts  = Block Block
