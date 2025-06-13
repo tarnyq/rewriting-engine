@@ -127,8 +127,10 @@ imp =   [ liftK     assignHeat
         , liftK     notHeat
         , liftK     notCool
         , liftBExp  notBExp
-        , liftK     leHeat
-        , liftK     leCool
+        , liftK     leHeatL
+        , liftK     leCoolL
+        , liftK     leHeatR
+        , liftK     leCoolR
         , liftBExp  le
         , liftK     addHeatL
         , liftK     addCoolL
@@ -210,16 +212,27 @@ imp =   [ liftK     assignHeat
         notBExp (Not (Bool b)) = Just $ (Bool (not b))
         notBExp _ = Nothing
 
-        leHeat :: Rewrite K
-        leHeat ((KI_BExp (Int _ :<= _)):_) = Nothing
-        leHeat ((KI_BExp (aexp :<= rhs)):rest)
-               = Just $ (KI_AExp aexp):(KI_BExp (AHole :<= rhs)):rest
-        leHeat _ = Nothing
+        leHeatL :: Rewrite K
+        leHeatL ((KI_BExp (Int _ :<= _)):_) = Nothing
+        leHeatL ((KI_BExp (aexp :<= rhs)):rest)
+              = Just $ (KI_AExp aexp):(KI_BExp (AHole :<= rhs)):rest
+        leHeatL _ = Nothing
 
-        leCool :: Rewrite K
-        leCool ((KI_AExp (Int i)):(KI_BExp (AHole :<= rhs)):rest)
-               = Just $ (KI_BExp (Int i :<= rhs)):rest
-        leCool _ = Nothing
+        leCoolL :: Rewrite K
+        leCoolL ((KI_AExp (Int i)):(KI_BExp (AHole :<= rhs)):rest)
+              = Just $ (KI_BExp (Int i :<= rhs)):rest
+        leCoolL _ = Nothing
+
+        leHeatR :: Rewrite K
+        leHeatR ((KI_BExp (Int _ :<= Int _)):_) = Nothing
+        leHeatR ((KI_BExp (lhs :<= aexp)):rest)
+              = Just $ (KI_AExp aexp):(KI_BExp (lhs :<= AHole)):rest
+        leHeatR _ = Nothing
+
+        leCoolR :: Rewrite K
+        leCoolR ((KI_AExp (Int i)):(KI_BExp (lhs :<= AHole)):rest)
+              = Just $ (KI_BExp (lhs :<= Int i)):rest
+        leCoolR _ = Nothing
 
         le :: Rewrite BExp
         le (Int i :<= Int j) = Just $ (Bool (i <= j))
