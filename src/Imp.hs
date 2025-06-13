@@ -124,53 +124,71 @@ eval_imp state = eval imp $ impInitState state
 
 data State = State { k :: K, store :: Store }  deriving Show
 impInitState :: Pgm -> State
-impInitState (Pgm ids pgm) = State [pgm] (impInitStore ids)  where
+impInitState (Pgm ids pgm) = State [Stmts pgm] (impInitStore ids)  where
 
 type Store = Map Id Integer
 impInitStore :: [Id] -> Store
 impInitStore ids = fromList $ zip ids (repeat 0)
 
-type K = [Stmts]
+type K = [KItem]
+data KItem = Stmts Stmts
+           | AExp AExp
+           | BExp BExp
+           deriving Show
 
 imp :: Semantics State
 imp =   [ assign
-        , liftK seqStmt
-        , liftK while
-        , liftK ifT
-        , liftK ifF
+        , liftK     seqStmt
+        , liftStmts while
+        , liftK     ifHeat
+        , liftStmts ifT
+        , liftStmts ifF
         ]
     where
         seqStmt :: Rewrite K
-        seqStmt ((StPair s1 s2):rest)
-              = Just $ s1:s2:rest
+        seqStmt ((Stmts (StPair s1 s2)):rest)
+              = Just $ (Stmts s1):(Stmts s2):rest
         seqStmt _ = Nothing
 
         assign :: Rewrite State
-        assign (State ((id := Int i):rest) store)
+        assign (State ((Stmts (id := Int i)):rest) store)
              = Just $ State rest (insert id i store)
         assign _ = Nothing
 
-        while :: Rewrite K
-        while ((While cond body):rest)
-            = Just $ (If cond (StmtsBlock $ StPair (Block body) (While cond body)) EmptyBlock):rest
+        while :: Rewrite Stmts
+        while (While cond body)
+            = Just $ (If cond (StmtsBlock $ StPair (Block body) (While cond body)) EmptyBlock)
         while _ = Nothing
 
-        ifT :: Rewrite K
-        ifT ((If (Bool True) stmtsTrue _):rest)
-          = Just $ (Block stmtsTrue):rest
+        ifT :: Rewrite Stmts
+        ifT (If (Bool True) stmtsTrue _) = Just $ (Block stmtsTrue)
         ifT _ = Nothing
 
-        ifF :: Rewrite K
-        ifF ((If (Bool False) _ stmtsFalse):rest)
-          = Just $ (Block stmtsFalse):rest
+        ifF :: Rewrite Stmts
+        ifF (If (Bool False) _ stmtsFalse) = Just $ (Block stmtsFalse)
         ifF _ = Nothing
 
+        ifHeat :: Rewrite K
+        ifHeat ((Stmts (If (Bool _) _ _)):_) = Nothing
+        ifHeat ((Stmts (If cond stmtsTrue stmtsFalse)):rest)
+               = Just $ (BExp cond):(Stmts (If BHole stmtsTrue stmtsFalse)):rest
+        ifHeat _ = Nothing
+
+
 --  XXX KMonad should generate this.
-liftK :: (Rewrite K) -> Rewrite State
+liftK :: Rewrite K -> Rewrite State
 liftK f state =
     case f (k state) of
            Just k' -> Just $ state { k = k' }
-           Nothing    -> Nothing
+           Nothing -> Nothing
+
+liftStmts :: Rewrite Stmts -> Rewrite State
+liftStmts f state =
+    case state of (State ((Stmts s):rest) _) ->
+                    case f s of
+                        Just s' -> Just $ state { k = ((Stmts s'):rest) }
+                        Nothing -> Nothing
+                  _ -> Nothing
 
 --  Sample: evaluate sample program.
 eval_sum_imp :: State
