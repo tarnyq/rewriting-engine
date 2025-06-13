@@ -84,29 +84,6 @@ deriving instance Show Block
 deriving instance Show Stmts    -- Not a list, so 'showList' override pointless.
 deriving instance Show Pgm
 
-{----------------------------------------------------------------------
-    Sample program 'sum.imp': this essentially serves as our test.
-
-        int n, sum;
-        n = 100;
-        sum = 0;
-        while (!(n <= 0)) {
-          sum = sum + n;
-          n = n + -1;
-        }
--}
-sum_imp :: Pgm
-sum_imp = Pgm ids stmts  where
-    ids   = ["n", "sum"]
-    stmts = mkStmts
-          [ "n" := Int 100
-          , "sum" := Int 0
-          , While (Not (Var "n" :<= (Int 0)))
-               (StmtsBlock (mkStmts
-                 [ "sum" := (Var "sum" :+ Var "n")
-                 , "n" := (Var "n" :+ Negate 1)
-                 ]))
-          ]
 
 ----------------------------------------------------------------------
 -- Semantics
@@ -316,7 +293,22 @@ liftAExp f state =
                         Nothing -> Nothing
                   _ -> Nothing
 
---  Sample: evaluate sample program.
+----------------------------------------------------------------------
+-- Sample programs to test syntax and semantics.
+
+sum_imp :: Pgm                                      --  'sum.imp'
+sum_imp = Pgm ids stmts  where
+    ids   = ["n", "sum"]                            --  int n, sum
+    stmts = mkStmts                                 --
+          [ "n" := Int 100                          --  n = 100
+          , "sum" := Int 0                          --  sum = 0
+          , While (Not (Var "n" :<= (Int 0)))       --  while (!(n <= 0)) {
+               (StmtsBlock (mkStmts                 --
+                 [ "sum" := (Var "sum" :+ Var "n")  --    sum = sum + n
+                 , "n" := (Var "n" :+ Negate 1)     --    n = n + -1
+                 ]))                                --  }
+          ]
+
 eval_sum_imp :: State
 eval_sum_imp = eval_imp sum_imp
 
