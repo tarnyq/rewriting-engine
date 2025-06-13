@@ -135,6 +135,12 @@ imp =   [ liftK     assignHeat
         , liftK     addHeatR
         , liftK     addCoolR
         , liftAExp  add
+        , liftK     divHeatL
+        , liftK     divCoolL
+        , liftK     divHeatR
+        , liftK     divCoolR
+        , liftAExp  div
+        , liftAExp  negate
         , liftAExp  negate
         , liftStmts block
         ]
@@ -249,6 +255,31 @@ imp =   [ liftK     assignHeat
         negate (Negate i) = Just $ (Int (-1 * i))
         negate _ = Nothing
 
+        divHeatL :: Rewrite K
+        divHeatL ((KI_AExp (Int _ :/ _)):_) = Nothing
+        divHeatL ((KI_AExp (lhs :/ rhs)):rest)
+               = Just $ (KI_AExp lhs):(KI_AExp (AHole :/ rhs)):rest
+        divHeatL _ = Nothing
+
+        divCoolL :: Rewrite K
+        divCoolL ((KI_AExp (Int i)):(KI_AExp (AHole :/ rhs)):rest)
+               = Just $ (KI_AExp (Int i :/ rhs)):rest
+        divCoolL _ = Nothing
+
+        divHeatR :: Rewrite K
+        divHeatR ((KI_AExp (Int _ :/ Int _)):_) = Nothing
+        divHeatR ((KI_AExp (Int lhs :/ rhs)):rest)
+               = Just $ (KI_AExp rhs):(KI_AExp (Int lhs :/ AHole)):rest
+        divHeatR _ = Nothing
+
+        divCoolR :: Rewrite K
+        divCoolR ((KI_AExp (Int i)):(KI_AExp (Int lhs :/ AHole)):rest)
+               = Just $ (KI_AExp (Int lhs :/ Int i)):rest
+        divCoolR _ = Nothing
+
+        div :: Rewrite AExp
+        div (Int i :/ Int j) | j /= 0 = Just $ (Int (i `Prelude.div` j))
+        div _ = Nothing
 
         lookupVar :: Rewrite State
         lookupVar (State ((KI_AExp (Var x)):rest) store)
