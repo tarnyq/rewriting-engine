@@ -179,14 +179,17 @@ imp =   [ liftK     assignHeat
         assignHeat _ = Nothing
 
         assignCool :: Rewrite K
-        assignCool ((AExp (Int rhs)):(Stmts (id := AHole)):rest)
-               = Just $ (Stmts (id := (Int rhs))):rest
+        assignCool ((AExp (Int i)):(Stmts (id := AHole)):rest)
+               = Just $ (Stmts (id := (Int i))):rest
         assignCool _ = Nothing
 
 
         while :: Rewrite Stmts
         while (While cond body)
-            = Just $ (If cond (StmtsBlock $ StPair (Block body) (While cond body)) EmptyBlock)
+            = Just $ (If cond
+                         (StmtsBlock $ StPair (Block body)
+                                              (While cond body))
+                         EmptyBlock)
         while _ = Nothing
 
         ifT :: Rewrite Stmts
@@ -256,8 +259,8 @@ imp =   [ liftK     assignHeat
         addHeatR _ = Nothing
 
         addCoolR :: Rewrite K
-        addCoolR ((AExp (Int rhs)):(AExp (Int lhs :+ AHole)):rest)
-               = Just $ (AExp (Int lhs :+ Int rhs)):rest
+        addCoolR ((AExp (Int i)):(AExp (Int lhs :+ AHole)):rest)
+               = Just $ (AExp (Int lhs :+ Int i)):rest
         addCoolR _ = Nothing
 
         add :: Rewrite AExp
@@ -270,8 +273,10 @@ imp =   [ liftK     assignHeat
 
 
         lookupVar :: Rewrite State
-        lookupVar (State ((AExp (Var x)):rest) store) | member x store
-             = Just $ State ((AExp $ Int $ findWithDefault undefined x store):rest) store
+        lookupVar (State ((AExp (Var x)):rest) store)
+                  | member x store
+                = Just $ State (exp:rest) store  where
+                      exp = AExp $ Int $ findWithDefault undefined x store
         lookupVar _ = Nothing
 
         block :: Rewrite Stmts
