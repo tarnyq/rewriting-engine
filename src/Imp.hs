@@ -294,7 +294,12 @@ liftAExp f state =
                   _ -> Nothing
 
 ----------------------------------------------------------------------
--- Sample programs to test syntax and semantics.
+--  Sample programs to test syntax and semantics.
+--
+--  ./Test  -m Imp -e 'mapM print $ map eval_imp […]'
+--      (where … = sum_imp, divide_imp, div0_imp)
+--  (Eventually Test will be able find all of the `x :: Pgm` here
+--  and evaluate them all for you.)
 
 sum_imp :: Pgm                                      --  'sum.imp'
 sum_imp = Pgm ids stmts  where
@@ -309,8 +314,19 @@ sum_imp = Pgm ids stmts  where
                  ]))                                --  }
           ]
 
-eval_sum_imp :: State
-eval_sum_imp = eval_imp sum_imp
+divide_imp :: Pgm
+divide_imp = Pgm ids stmts  where
+    ids   = ["a", "b", "r"]                         --  int a, b, r
+    stmts = mkStmts                                 --
+          [ "a" := Int 100                          --  a = 100
+          , "b" := Int 3                            --  b = 3
+          , "r" := (Var "a" :/ Var "b")             --  r = a / b
+          ]
+
+div0_imp :: Pgm
+div0_imp = Pgm ids stmts  where
+    ids   = ["r"]
+    stmts = mkStmts [ "r" := (Int 42 :/ Int 0) ]
 
 ----------------------------------------------------------------------
 -- Library Function (Not part of Imp)
