@@ -92,9 +92,9 @@ deriving instance Show Pgm
 type Rewrite a = a -> Maybe a
 type Semantics a = [Rewrite a]
 
--- Evaluate a program using Imp semantics.
+-- Evaluate a program using Imp semantics (genercise this to all Semantics).
 eval_imp :: Pgm -> State
-eval_imp state = eval imp $ impInitState state
+eval_imp pgm = eval imp $ impInitState pgm
 
 ----------------------------------------
 -- User provided Language definition
