@@ -29,12 +29,34 @@ deriving instance Show Cmd
 deriving instance Show IExp
 
 ----------------------------------------------------------------------
--- Semantics
+--  Semantics
 
-data State      = State { store :: Map.Map Id Integer }  deriving Show
+--  A 'Store' contains *all* possible variables each initialised to the
+--  default value '0'. (For efficiency, we do not actually allocate storage
+--  for these until they are assigned.) This is only one way of doing it
+--  and was chosen because it's the simplest to implement. It also happens
+--  to easily give us, at the end of execution, the set of all variables
+--  that were assigned. Different implementations might make it e.g. more
+--  difficult to get that but easier to get the set of all variables that
+--  were referenced.
+type Store      = Map.Map Id Integer
+initStore       :: Store
+initStore       = Map.empty
+lookupStore     :: Id -> Store -> Integer
+lookupStore     = Map.findWithDefault 0
 
-emptyState     :: State
-emptyState      = State Map.empty
+--  The State includes the program; our "program counter" is just removing
+--  each line as it's executed (which is fine when we have no loops).
+--  Whether we use a mutible program here that we rewrite is really just a
+--  decision on the part of the implementer (though this may become less
+--  true as we better define the framework).
+data State  = State
+            {  prog :: Prog
+            , store :: Store
+            }  deriving Show
+
+initState :: Prog -> State
+initState prog  = State prog initStore
 
 ----------------------------------------------------------------------
 -- Examples and Tests
@@ -43,12 +65,15 @@ one_imp :: Prog
 one_imp = Seq [ 'i' := Const 42, 'j' := Var 'i' ]
 
 run :: Prog -> State
-run prog = evalProg prog emptyState  where
-    evalProg :: Prog -> State -> State
-    evalProg (Seq [])         state = state
-    evalProg (Seq (cmd:cmds)) state = evalProg (Seq cmds) (evalCmd cmd state)
+run prog = evalProg (initState prog)  where
+    evalProg :: State -> State
+    evalProg state@(State (Seq []) _) = state
+    evalProg state@(State (Seq (cmd:cmds)) σ)
+        = evalProg state { prog = Seq cmds, store = evalCmd cmd σ }
 
-evalCmd :: Cmd -> State -> State
-evalCmd (v := Const c) (State store) = State $ Map.insert v c store
-evalCmd (v₁ := Var v₂) (State store) = State $ Map.insert v₁ (lookup v₂) store
-    where lookup v = Map.findWithDefault 0 v store
+-- This cannot rewrite the program in the state, so is used only for
+-- simple Cmds where the rewriting of the program is just the caller
+-- removing the executed command.
+evalCmd :: Cmd -> Store -> Store
+evalCmd (v₁ := Const c₁) store = Map.insert v₁ c₁ store
+evalCmd (v₁ := Var v₂)   store = Map.insert v₁ (lookupStore v₂ store) store
