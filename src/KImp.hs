@@ -13,7 +13,7 @@
 -}
 
 {-# OPTIONS_GHC -Wno-unused-top-binds #-}
-module Imp () where
+module KImp () where
 
 import Data.Map (Map, findWithDefault, fromList, insert, member)
 
@@ -28,7 +28,7 @@ import Data.Map (Map, findWithDefault, fromList, insert, member)
     keep the precedence settings, both to document them and because it's
     handy when building an AST in Haskell code.)
 
-    Below we refer to the Imp module as written in K as 'KImp'.
+    Below we refer to the semantics as written in K as 'KTutImp'.
 -}
 
 type Id     = String
@@ -49,7 +49,7 @@ data BExp   = Bool Bool
             | BExp :&& BExp
 
             | BHole             -- XXX Needed to define strictness
-data Block  = StmtsBlock Stmts  -- Renamed from 'Stmt' in KImp
+data Block  = StmtsBlock Stmts  -- Renamed from 'Stmt' in KTutImp
             | EmptyBlock
 data Stmts  = Block Block
             | Id := AExp
@@ -61,16 +61,16 @@ type Ids    = [Id]
 
                                 -- Same precedence values as the prelude.
 infixl 7  :/
-infix  6  :+                    -- KImp: Left-assoc for more efficient parsing.
+infix  6  :+                    -- KTutImp: Left-assoc for more efficient parsing.
 infix  4  :<=
-infixl 3  :&&                   -- Should be RA! But broken this way in KImp.
+infixl 3  :&&                   -- Should be RA! But broken this way in KTutImp.
 
---  The KImp parser doesn't produce a list of statements, but instead, via
---  right-associative parsing, produces a left-skewing nearly degenerate
---  binary tree. (Yes, this is weird, but a consequence of 'Stmts' rather
---  than 'Block' being the root of the AST; a 'Stmts' must be able to act
---  like 'Block'.)
---  We provide this helper function to do the same thing as the KImp parser.
+--  The KTutImp parser doesn't produce a list of statements, but instead,
+--  via right-associative parsing, produces a left-skewing nearly
+--  degenerate binary tree. (Yes, this is weird, but a consequence of
+--  'Stmts' rather than 'Block' being the root of the AST; a 'Stmts' must
+--  be able to act like 'Block'.)
+--  We provide this helper function to do the same thing as the KTutImp parser.
 mkStmts :: [Stmts] -> Stmts
 mkStmts stmtList = statements (reverse stmtList)  where
     statements []     = error "programs must have at least one statement"
@@ -340,7 +340,7 @@ liftAExp f state =
 ----------------------------------------------------------------------
 --  Sample programs to test syntax and semantics.
 --
---  ./Test  -m Imp -e 'mapM print $ map eval_imp […]'
+--  ./Test  -m KImp -e 'mapM print $ map eval_imp […]'
 --      (where … = sum_imp, divide_imp, div0_imp)
 --  (Eventually Test will be able find all of the `x :: Pgm` here
 --  and evaluate them all for you.)
@@ -373,7 +373,7 @@ div0_imp = Pgm ids stmts  where
     stmts = mkStmts [ "r" := (Int 42 :/ Int 0) ]
 
 ----------------------------------------------------------------------
--- Library Function (Not part of Imp)
+-- Library Functions (Not part of KImp)
 
 eval :: Semantics a -> a -> a
 eval rewrites state = eval' rewrites where

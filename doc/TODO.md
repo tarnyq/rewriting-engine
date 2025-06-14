@@ -17,7 +17,7 @@ Build system:
 Roadmap
 -------
 
-### Implement IMP strictly paralleling (determinized) KImp
+### Implement IMP strictly paralleling (determinized) K Tutorial Imp
 
 Our goal here is to define a rewriting logic semantics for Imp. Each
 rewrite rule is implemented as a function `State -> Maybe State`, The
@@ -51,7 +51,7 @@ Use Haskell idioms to implement Imp sensibly.
 -   Clean up the AST
 -   Consider using the bang operator to improve performance.
 -   Verify sum-to-n in Imp.
--   Benchmark comparing to KImp.
+-   Benchmark comparing to KTutImp.
 
 ### Mini-EVM semantics
 
