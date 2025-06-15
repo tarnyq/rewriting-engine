@@ -53,13 +53,10 @@ data BExp   = Bool Bool
             | BExp :&& BExp
             | BHole             -- As per AHole above.
 
-data Block  = StmtBlock Stmt
-            | EmptyBlock
-data Stmt   = Block Block
+data Stmt   = Block [Stmt]
             | Id := AExp
-            | If BExp Block Block
-            | While BExp Block
-            | StPair Stmt Stmt
+            | If BExp Stmt Stmt
+            | While BExp Stmt
 data Pgm    = Pgm Ids Stmt
 type Ids    = [Id]
 
@@ -69,25 +66,11 @@ infix  6  :+                    -- KTutImp: Left-assoc for more efficient parsin
 infix  4  :<=
 infixl 3  :&&                   -- Should be RA! But broken this way in KTutImp.
 
---  The KTutImp parser doesn't produce a list of statements, but instead,
---  via right-associative parsing, produces a left-skewing nearly
---  degenerate binary tree. (Yes, this is weird, but a consequence of
---  'Stmt' rather than 'Block' being the root of the AST; a 'Stmt' must
---  be able to act like 'Block'.)
---  We provide this helper function to do the same thing as the KTutImp parser.
-mkStmt :: [Stmt] -> Stmt
-mkStmt stmtList = statements (reverse stmtList)  where
-    statements []     = error "programs must have at least one statement"
-    statements [s]    = s
-    statements (s:ss) = StPair (statements ss) s
-
 --  Make all this showable just for convenience and debugging.
 deriving instance Show AExp
 deriving instance Show BExp
-deriving instance Show Block
-deriving instance Show Stmt     -- Not a list, so 'showList' override pointless.
+deriving instance Show Stmt
 deriving instance Show Pgm
-
 
 ----------------------------------------------------------------------
 -- Semantics
@@ -147,12 +130,11 @@ imp =   [ liftK     assignHeat
         , liftK     divCoolR
         , liftAExp  div
         , liftAExp  negate
-        , liftStmt  block
         ]
     where
         seqStmt :: Rewrite K
-        seqStmt ((KI_Stmt (StPair s1 s2)):rest)
-              = Just $ (KI_Stmt s1):(KI_Stmt s2):rest
+        seqStmt ((KI_Stmt (Block (s:ss))):rest)
+              = Just $ (KI_Stmt s):(KI_Stmt $ Block ss):rest
         seqStmt _ = Nothing
 
         assign :: Rewrite State
@@ -174,18 +156,16 @@ imp =   [ liftK     assignHeat
 
         while :: Rewrite Stmt
         while (While cond body)
-            = Just $ (If cond
-                         (StmtBlock $ StPair (Block body)
-                                              (While cond body))
-                         EmptyBlock)
+            = Just $ (If cond  (Block [body, (While cond body)])
+                               (Block []))
         while _ = Nothing
 
         ifT :: Rewrite Stmt
-        ifT (If (Bool True) stmtTrue _) = Just $ (Block stmtTrue)
+        ifT (If (Bool True) stmtTrue _) = Just $ stmtTrue
         ifT _ = Nothing
 
         ifF :: Rewrite Stmt
-        ifF (If (Bool False) _ stmtFalse) = Just $ (Block stmtFalse)
+        ifF (If (Bool False) _ stmtFalse) = Just $ stmtFalse
         ifF _ = Nothing
 
         ifHeat :: Rewrite K
@@ -304,11 +284,6 @@ imp =   [ liftK     assignHeat
                 where exp = KI_AExp $ Int $ findWithDefault undefined x store
         lookupVar _ = Nothing
 
-        block :: Rewrite Stmt
-        block (Block (StmtBlock s)) = Just s
-        block _ = Nothing
-
-
 --  XXX KMonad should generate this.
 liftK :: Rewrite K -> Rewrite State
 liftK f state =
@@ -351,20 +326,19 @@ liftAExp f state =
 sum_imp :: Pgm                                      --  'sum.imp'
 sum_imp = Pgm ids stmt  where
     ids   = ["n", "sum"]                            --  int n, sum
-    stmt = mkStmt                                   --
+    stmt = Block
          [ "n" := Int 100                           --  n = 100
          , "sum" := Int 0                           --  sum = 0
-         , While (Not (Var "n" :<= (Int 0)))        --  while (!(n <= 0)) {
-              (StmtBlock (mkStmt                    --
+         , While (Not (Var "n" :<= (Int 0))) (Block --  while (!(n <= 0)) {
                 [ "sum" := (Var "sum" :+ Var "n")   --    sum = sum + n
                 , "n" := (Var "n" :+ Negate 1)      --    n = n + -1
-                ]))                                 --  }
+                ])                                  --  }
          ]
 
 divide_imp :: Pgm
 divide_imp = Pgm ids stmt  where
     ids   = ["a", "b", "r"]                         --  int a, b, r
-    stmt = mkStmt
+    stmt = Block
          [ "a" := Int 100                           --  a = 100
          , "b" := Int 3                             --  b = 3
          , "r" := (Var "a" :/ Var "b")              --  r = a / b
@@ -373,7 +347,7 @@ divide_imp = Pgm ids stmt  where
 div0_imp :: Pgm
 div0_imp = Pgm ids stmt  where
     ids   = ["r"]
-    stmt  = mkStmt [ "r" := (Int 42 :/ Int 0) ]
+    stmt  = Block [ "r" := (Int 42 :/ Int 0) ]
 
 ----------------------------------------------------------------------
 -- Library Functions (Not part of KImp)
