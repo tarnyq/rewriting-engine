@@ -162,8 +162,8 @@ imp =   [ liftK     assignHeat
 
         assignHeat :: Rewrite K
         assignHeat ((KI_Stmts (_ := Int _)):_) = Nothing
-        assignHeat ((KI_Stmts (id := rhs)):rest)
-               = Just $ (KI_AExp rhs):(KI_Stmts (id := AHole)):rest
+        assignHeat ((KI_Stmts (id := aexp)):rest)
+               = Just $ (KI_AExp aexp):(KI_Stmts (id := AHole)):rest
         assignHeat _ = Nothing
 
         assignCool :: Rewrite K
@@ -217,8 +217,8 @@ imp =   [ liftK     assignHeat
 
         leHeatL :: Rewrite K
         leHeatL ((KI_BExp (Int _ :<= _)):_) = Nothing
-        leHeatL ((KI_BExp (aexp :<= rhs)):rest)
-              = Just $ (KI_AExp aexp):(KI_BExp (AHole :<= rhs)):rest
+        leHeatL ((KI_BExp (lhs :<= rhs)):rest)
+              = Just $ (KI_AExp lhs):(KI_BExp (AHole :<= rhs)):rest
         leHeatL _ = Nothing
 
         leCoolL :: Rewrite K
@@ -228,8 +228,8 @@ imp =   [ liftK     assignHeat
 
         leHeatR :: Rewrite K
         leHeatR ((KI_BExp (Int _ :<= Int _)):_) = Nothing
-        leHeatR ((KI_BExp (lhs :<= aexp)):rest)
-              = Just $ (KI_AExp aexp):(KI_BExp (lhs :<= AHole)):rest
+        leHeatR ((KI_BExp (lhs :<= rhs)):rest)
+              = Just $ (KI_AExp rhs):(KI_BExp (lhs :<= AHole)):rest
         leHeatR _ = Nothing
 
         leCoolR :: Rewrite K
