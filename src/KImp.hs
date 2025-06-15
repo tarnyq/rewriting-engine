@@ -143,7 +143,6 @@ imp =   [ liftK     assignHeat
         , liftK     divCoolR
         , liftAExp  div
         , liftAExp  negate
-        , liftAExp  negate
         , liftStmts block
         ]
     where
