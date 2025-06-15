@@ -13,6 +13,12 @@ Build system:
   `--stack-yaml` (or `$STACK_YAML`?) to use it, removing top-level
   `stack.yaml` symlink.
 
+Framework Structure:
+- Examine [Recursion Schemes][] (Banannas/Lenses/Envelopes/Barbed Wire) for
+  in-place reduction rather using a heating rule to replacing the expr with
+  a hole and consing the separate expression, reducing, and then filling
+  the hole with the car, leaving the cdr.
+
 
 Roadmap
 -------
@@ -85,6 +91,6 @@ keep the semantics modular, yet extensible.
 
 
 <!-------------------------------------------------------------------->
+[Recursion Schemes]: https://reasonablypolymorphic.com/blog/recursion-schemes/index.html
 [Stack's script interpreter]: https://docs.haskellstack.org/en/stable/topics/scripts/
 [lhtut]: https://ucsd-progsys.github.io/liquidhaskell-tutorial/
-
