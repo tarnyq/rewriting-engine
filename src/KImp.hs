@@ -12,6 +12,7 @@
     [2]: https://github.com/runtimeverification/imp-semantics
 -}
 
+{-# LANGUAGE ScopedTypeVariables #-}
 {-# OPTIONS_GHC -Wno-unused-top-binds #-}
 module KImp
     ( Pgm, State
@@ -382,9 +383,13 @@ div0_imp = Pgm ids stmts  where
 ----------------------------------------------------------------------
 -- Library Functions (Not part of KImp)
 
-eval :: Semantics a -> a -> a
-eval rewrites state = eval' rewrites where
-    eval' []     = state
-    eval' (r:rs) = case (r state) of
-                        Nothing     -> eval' rs
-                        Just state' -> eval rewrites state'
+eval :: forall a. Semantics a -> a -> a
+eval rewrites state =
+    let applyFirstMatchingRule :: Semantics a -> Maybe a
+        applyFirstMatchingRule []     = Nothing
+        applyFirstMatchingRule (r:rs) = case (r state) of
+                           Nothing     -> applyFirstMatchingRule rs
+                           Just state' -> Just state'
+    in case (applyFirstMatchingRule rewrites) of
+            Nothing     -> state
+            Just state' -> eval rewrites state'
