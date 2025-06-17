@@ -31,6 +31,8 @@ default-extensions:         # Enabled in every module.
 other-extensions: []
 
 ghc-options:
+  - -rtsopts                # Allows +RTS … -RTS when running compiled progs.
+                            #   https://downloads.haskell.org/ghc/latest/docs/users_guide/runtime_control.html
   - -Wall                   # Not actually *all* warnings, thus additions below.
   - -Wno-name-shadowing     # Having to avoid collisions w/top-level names
                             #    is more awkward than helpful.
