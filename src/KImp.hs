@@ -99,7 +99,7 @@ deriving instance Show Pgm
 
 -- Generic parts
 type Rewrite a = a -> Maybe a
-type Semantics a = [Rewrite a]
+type Semantics a = Rewrite a
 
 -- Evaluate a program using Imp semantics (genercise this to all Semantics).
 eval_imp :: Pgm -> State
@@ -123,37 +123,36 @@ data KItem = KI_Stmts Stmts
            deriving Show
 
 imp :: Semantics State
-imp =   [ liftK     assignHeat
-        , liftK     assignCool
-        ,           assign
-        ,           lookupVar
-        , liftK     seqStmt
-        , liftStmts while
-        , liftK     ifHeat
-        , liftK     ifCool
-        , liftStmts ifT
-        , liftStmts ifF
-        , liftK     notHeat
-        , liftK     notCool
-        , liftBExp  notBExp
-        , liftK     leHeatL
-        , liftK     leCoolL
-        , liftK     leHeatR
-        , liftK     leCoolR
-        , liftBExp  le
-        , liftK     addHeatL
-        , liftK     addCoolL
-        , liftK     addHeatR
-        , liftK     addCoolR
-        , liftAExp  add
-        , liftK     divHeatL
-        , liftK     divCoolL
-        , liftK     divHeatR
-        , liftK     divCoolR
-        , liftAExp  div
-        , liftAExp  negate
-        , liftStmts block
-        ]
+imp =   liftK     assignHeat    `orElse`
+        liftK     assignCool    `orElse`
+                  assign        `orElse`
+                  lookupVar     `orElse`
+        liftK     seqStmt       `orElse`
+        liftStmts while         `orElse`
+        liftK     ifHeat        `orElse`
+        liftK     ifCool        `orElse`
+        liftStmts ifT           `orElse`
+        liftStmts ifF           `orElse`
+        liftK     notHeat       `orElse`
+        liftK     notCool       `orElse`
+        liftBExp  notBExp       `orElse`
+        liftK     leHeatL       `orElse`
+        liftK     leCoolL       `orElse`
+        liftK     leHeatR       `orElse`
+        liftK     leCoolR       `orElse`
+        liftBExp  le            `orElse`
+        liftK     addHeatL      `orElse`
+        liftK     addCoolL      `orElse`
+        liftK     addHeatR      `orElse`
+        liftK     addCoolR      `orElse`
+        liftAExp  add           `orElse`
+        liftK     divHeatL      `orElse`
+        liftK     divCoolL      `orElse`
+        liftK     divHeatR      `orElse`
+        liftK     divCoolR      `orElse`
+        liftAExp  div           `orElse`
+        liftAExp  negate        `orElse`
+        liftStmts block
     where
         seqStmt :: Rewrite K
         seqStmt ((KI_Stmts (StPair s1 s2)):rest)
@@ -383,13 +382,12 @@ div0_imp = Pgm ids stmts  where
 ----------------------------------------------------------------------
 -- Library Functions (Not part of KImp)
 
-eval :: forall a. Semantics a -> a -> a
-eval rewrites state =
-    let applyFirstMatchingRule :: Semantics a -> Maybe a
-        applyFirstMatchingRule []     = Nothing
-        applyFirstMatchingRule (r:rs) = case (r state) of
-                           Nothing     -> applyFirstMatchingRule rs
-                           Just state' -> Just state'
-    in case (applyFirstMatchingRule rewrites) of
-            Nothing     -> state
-            Just state' -> eval rewrites state'
+orElse :: Rewrite a -> Rewrite a -> Rewrite a
+orElse r1 r2 = \state -> case (r1 state) of
+                              Nothing  -> r2 state
+                              Just st' -> Just st'
+
+eval :: Semantics a -> a -> a
+eval rewrites state = eval' state (rewrites state)  where
+    eval' s Nothing   = s
+    eval' _ (Just s') = eval' s' (rewrites s')
