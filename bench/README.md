@@ -5,6 +5,9 @@ This `bench/` subdir contains the the K versions of programs and semantics
 that we are benchmarking against similar versions in Haskell, which are
 under `src/` etc. at the top level.
 
+[`Notes.md`] contains preliminary benchmark timings and notes on what's
+been changed for various runs.
+
 This currently is mostly hardcoded, even to the number of iterations run.
 It needs to be parametrized should we want to benchmark more than just the
 'sum.imp' program for the 'Imp' language.
@@ -39,6 +42,7 @@ way using `docker run` with appropriate parameters.)
 
 
 <!-------------------------------------------------------------------->
+[`Notes.md`]: ./Notes.md
 [`pl-tutorial`]: https://github.com/runtimeverification/pl-tutorial
 [dent]: https://github.com/cynic-net/dent
 [lesson 5]: https://github.com/runtimeverification/pl-tutorial/blob/master/1_k/2_imp/lesson_5/imp.md
