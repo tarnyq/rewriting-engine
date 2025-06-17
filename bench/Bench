@@ -1,0 +1,24 @@
+#!/usr/bin/env bash
+#
+#   Benchmark build and interpretation of sum.imp.
+#
+set -Eeuo pipefail
+trap 'ec=$?; echo 1>&2 "INTERNAL ERROR: ec=$ec line=$LINENO cmd=$BASH_COMMAND";
+      exit $ec;' ERR
+
+PROJDIR=$(command cd "$(dirname "$0")/.." && pwd -P)
+BENCHDIR=$(dirname "$0")
+BUILDDIR="$PROJDIR"/.build/bench/imp-kompiled
+
+command cd "$BENCHDIR"
+mkdir -p "$BUILDDIR"
+echo "───── kompile"
+time kompile -o "$BUILDDIR" imp.k
+echo "───── krun"
+#   We need only the .kore file (parsed program and initial state);
+#   `--depth 0` stops without taking any steps, printing the initial state.
+time krun -d "$BUILDDIR" sum.imp --depth 0 --output kore > "$BUILDDIR"/sum.kore
+echo "───── interpreter"
+(   cd "$BUILDDIR"
+    time ./interpreter ./sum.kore -1 sum.output
+)

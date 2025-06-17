@@ -1,0 +1,10 @@
+#!/usr/bin/env bash
+#
+#   Using `dent`, set up and enter a Docker image with K available.
+#   This is helpful if you don't have K built in your current environment
+#   or container, but not necessary if you do.
+#
+set -Eeuo pipefail
+
+base_image=runtimeverificationinc/kframework-k:ubuntu-noble-7.1.268
+dent -B "$base_image" -S ~/co/public k7
