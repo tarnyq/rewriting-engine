@@ -54,11 +54,10 @@ library:
   source-dirs: src
 
 executables:
-  kmonad-exe:
-    main:                Main.hs
-    source-dirs:         app
-    dependencies:
-      - kmonad
+  benchmark:
+    main:               Benchmark.hs
+    source-dirs:        app
+    dependencies:       [kmonad]
 
 tests:
   kmonad-test:

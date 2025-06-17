@@ -13,7 +13,11 @@
 -}
 
 {-# OPTIONS_GHC -Wno-unused-top-binds #-}
-module KImp () where
+module KImp
+    ( Pgm, State
+    , eval_imp                          -- interpreter
+    , sum_imp, divide_imp, div0_imp     -- sample programs
+    ) where
 
 import Data.Map (Map, findWithDefault, fromList, insert, member)
 
