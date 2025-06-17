@@ -34,15 +34,19 @@ clean() {
 
 export PROJDIR=$(cd "$(dirname "$0")" && pwd -P)
 
+verbosity=0         # Cabal verbosity level (default 1 but we always override
+                    # it) and perhaps other things.
 lhver=              # Switch to different version of Liquid Haskell.
 ghci_modules=()     # Run ghci after build, :load! the given modules, and
 ghci_exprs=()       #   then evaluate the given expressions.
 while [[ ${#@} -gt 0 ]]; do case "$1" in
     --)             shift; break;;
     -C|-c)          shift; clean;;
+    -v|--verbose)   shift; verbosity=$(($verbosity+1));;    # multiple times ok
     -l|--lhver)     shift; lhver="$1"; shift;;
     -m|--module)    shift; ghci_modules+=("$1"); shift;;
     -e|--expr)      shift; ghci_exprs+=("$1"); shift;;
+    -*)             die 2 "Unknown option: $1";;
     *)              break;;
 esac; done
 
@@ -96,7 +100,7 @@ cd "$PROJDIR"
 #   lock file every time becomes too slow, it's fine to remove it just once
 #   per day or whatever.
 rm -f stack.yaml.lock
-stack build || fail
+stack build --cabal-verbosity=$verbosity || fail
 
 [[ -n ${ghci_exprs[*]} ]] && {
     ghci_inputs=()
