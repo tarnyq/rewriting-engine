@@ -348,11 +348,11 @@ liftAExp f state =
 --  (Eventually Test will be able find all of the `x :: Pgm` here
 --  and evaluate them all for you.)
 
-sum_imp :: Pgm                                      --  'sum.imp'
-sum_imp = Pgm ids stmts  where
+sum_imp :: Integer -> Pgm                           --  'sum.imp'
+sum_imp n = Pgm ids stmts  where
     ids   = ["n", "sum"]                            --  int n, sum
     stmts = mkStmts                                 --
-          [ "n" := Int 100                          --  n = 100
+          [ "n" := Int n                            --  n = $n
           , "sum" := Int 0                          --  sum = 0
           , While (Not (Var "n" :<= (Int 0)))       --  while (!(n <= 0)) {
                (StmtsBlock (mkStmts                 --
