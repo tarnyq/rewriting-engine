@@ -2,18 +2,32 @@
 #
 #   Benchmark build and interpretation of sum.imp.
 #
+#   You may skip the (long) compile stage with the `--skip-kompile` option;
+#   it's the developer's responsibility to ensure that they doesn't do this
+#   when the semantics need to be (re-)compiled.
+#
 set -Eeuo pipefail
 trap 'ec=$?; echo 1>&2 "INTERNAL ERROR: ec=$ec line=$LINENO cmd=$BASH_COMMAND";
       exit $ec;' ERR
+
+die() { ec=$1; shift; echo "$@"; exit $ec; }
 
 PROJDIR=$(command cd "$(dirname "$0")/.." && pwd -P)
 BENCHDIR=$(dirname "$0")
 BUILDDIR="$PROJDIR"/.build/bench/imp-kompiled
 
+skip_compile=false
+while [[ $# -gt 0 ]]; do case "$1" in
+    -s|--skip-kompile)  shift; skip_compile=true;;
+    *)                  die 2 "Unknown argument: $1";;
+esac; done
+
 command cd "$BENCHDIR"
 mkdir -p "$BUILDDIR"
 echo "───── kompile"
-time kompile -o "$BUILDDIR" imp.k
+$skip_compile \
+    && { echo "WARNING: skipped"; } \
+    || time kompile -o "$BUILDDIR" imp.k
 echo "───── krun"
 #   We need only the .kore file (parsed program and initial state);
 #   `--depth 0` stops without taking any steps, printing the initial state.
