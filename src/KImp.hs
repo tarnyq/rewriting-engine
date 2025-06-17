@@ -37,7 +37,7 @@ import Data.Map (Map, findWithDefault, fromList, insert, member)
 
 type Id     = String            -- In K, supplied by DOMAINS-SYNTAX.
 
-data AExp   = Int Integer
+data AExp   = Int !Integer
             | Var Id
             | Negate Integer    -- Cannot negate AExps for some reason.
             | AExp :/ AExp

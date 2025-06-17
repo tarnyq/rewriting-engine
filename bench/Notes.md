@@ -20,7 +20,17 @@ Timed on a Ryzen 7 7735HS (cjs/njr's mini-desktop) unless otherwise indicated.
      5      12.5    3       3.6
      2       4.7    1.3     1.6
      1       2.5    0.7     0.8
+    ───────────────────────────────────────────────────────────────
+    10      26      0.0     0.0     AExp, Int !Integer
+    ───────────────────────────────────────────────────────────────
 
-This seems linear in time, memory usage and GC for n=1…10, so So we
-probably don't have major issues with our use of Haskell except that
+Section 1: This seems linear in time, memory usage and GC for n=1…10, so So
+we probably don't have major issues with our use of Haskell except that
 ideally GC time would be near 0.
+
+Section 2: The `!` operator reduces only to WHNF (weak head normal form),
+so the "internals" of the var can still be a massive stream of thunks.
+Thus, a `!state` in `eval` wouldn't make much difference (we'd need to go to
+_full_ normal form to have that work, but `Int !Integer` in `AExp` reduces
+often because that's where we are doing our arithemtic for this particular
+program.
