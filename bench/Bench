@@ -12,6 +12,15 @@ trap 'ec=$?; echo 1>&2 "INTERNAL ERROR: ec=$ec line=$LINENO cmd=$BASH_COMMAND";
 
 die() { ec=$1; shift; echo "$@"; exit $ec; }
 
+time_run() {
+    type -P time >/dev/null \
+        || die 3 '`time` command not found. Install `time` package?'
+    command time -f "\
+elapsed/user/system:\t%es\t%Us\t%Ss
+    average/max mem:\t%K KB\t%M KB" \
+   "$@"
+}
+
 ####################################################################
 
 benchmark_h() {
@@ -20,7 +29,7 @@ benchmark_h() {
         && { echo "WARNING: build/test skipped"; } \
         || ./Test
     echo "───── run"
-    time $(stack path --local-install-root)/bin/benchmark
+    time_run $(stack path --local-install-root)/bin/benchmark
 }
 
 benchmark_k() {
@@ -28,16 +37,16 @@ benchmark_k() {
     echo "───── kompile"
     $skip_compile \
         && { echo "WARNING: kompile skipped"; } \
-        || time kompile -o "$BUILDDIR" bench/imp.k
+        || time_run kompile -o "$BUILDDIR" bench/imp.k
     echo "───── krun"
     #   We need only the .kore file (parsed program and initial state);
     #   `--depth 0` stops without taking any steps, printing the initial state.
-    time krun -d "$BUILDDIR" bench/sum.imp --depth 0 \
+    time_run krun -d "$BUILDDIR" bench/sum.imp --depth 0 \
         --output kore > "$BUILDDIR"/sum.kore
     echo "───── interpreter"
     (   cd "$BUILDDIR"
         #   Iteration count hard-coded into sum.imp.
-        time ./interpreter ./sum.kore -1 sum.output
+        time_run ./interpreter ./sum.kore -1 sum.output
     )
 }
 
