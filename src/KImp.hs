@@ -98,8 +98,25 @@ deriving instance Show Pgm
 -- Semantics
 
 -- Generic parts
-type Rewrite a = a -> Maybe a
-type Semantics a = Rewrite a
+type Rewrite a      = a -> Maybe a
+instance Functor Rewrite  where
+    --  fmap :: (α -> β) -> f α            -> f β
+    --  fmap :: (α -> β) -> Rewrite α      -> Rewrite β
+    fmap :: (α -> β) -> (α -> Maybe α) -> (β -> Maybe β)
+    fmap f ra = \b -> case ra a of
+                           Just a' -> undefined
+                           Nothing -> undefined
+
+-- instance  Functor Maybe  where
+--  fmap :: (a -> b) -> f a            -> f b
+--  fmap :: (a -> b) -> f a            -> f b
+--  fmap _ Nothing       = Nothing
+--  fmap f (Just a)      = Just (f a)
+
+--  Since we have only a single evaluation strategy, 'eval', that takes
+--  a list of rewrite rules and returns the result of the first matching
+--  rule or Nothing, we do not yet use the following type.
+type Semantics a    = a -> [a]
 
 -- Evaluate a program using Imp semantics (genercise this to all Semantics).
 eval_imp :: Pgm -> State
@@ -312,6 +329,11 @@ imp =   liftK     assignHeat    `orElse`
         block (Block (StmtsBlock s)) = Just s
         block _ = Nothing
 
+
+-- project :: State -> K
+-- update  :: State -> K -> State
+
+-- lift :: Applicative m => (a -> r) -> m a -> m r
 
 --  XXX KMonad should generate this.
 liftK :: Rewrite K -> Rewrite State
