@@ -19,6 +19,22 @@ Framework Structure:
   a hole and consing the separate expression, reducing, and then filling
   the hole with the car, leaving the cdr.
 
+Performance:
+- For performance, we generally want states to be as strict as possible by
+  default because otherwise we can get large space leaks that are expensive
+  to allocate and GC. However, this changes the semantics somewhat in that
+  certain structures that can be evaluated with lazy elements may not be
+  evaluable strictly. So what we want in the long run is probably for
+  semantics to be strict by default, but optionally allow developers to
+  make lazy semantics (and assume that they understand all that implies).
+- For "strict mode," it would seem to make sense to use `deepseq` on the
+  State after each rewrite step to force it to HNF. This avoids
+  "strict-only" developer having to learn about lazyness and litter their
+  code with strictness annotations. This would be done with something like
+  importing `NFData` from `Control.Parallel.Strartegies`, `deepseq` from
+  `Control.DeepSeq`, and ``eval rewrites xstate = xstate `deepseq` (eval'
+  rewrites xstate) where …``.
+
 
 Roadmap
 -------
