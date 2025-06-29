@@ -35,6 +35,13 @@ Performance:
   `Control.DeepSeq`, and ``eval rewrites xstate = xstate `deepseq` (eval'
   rewrites xstate) where …``.
 
+Documentation:
+- Explain big step vs. small step semantics, where big step semantics
+  reduces `Prg{ x=1+1+1 }` to `Store{ x=3 }` in one step, whereas small
+  step semantics reduces `Prg{ x=1+1+1 }` to `Prg{ x=2+1 }` etc.,
+  eventually getting to `Store{x = 3}` after several steps. (Or can we do
+  something in the code that makes this clear?)
+
 
 Roadmap
 -------
