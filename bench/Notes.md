@@ -51,6 +51,7 @@ the list of rules, at a couple of dozen, is not tiny.)
     ───────────────────────────────────────────────────────────────
     10      13      0       0       Original
     10      15      0       0       Sorted rules
+    10      12      0       0       Sorted and Grouped
     ───────────────────────────────────────────────────────────────
 
 
