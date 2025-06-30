@@ -25,6 +25,7 @@ Timed on a Ryzen 7 7735HS (cjs/njr's mini-desktop) unless otherwise indicated.
     ───────────────────────────────────────────────────────────────
     10      11.6    0.0     0.0     §3 Unroll
 
+
 §1: This seems linear in time, memory usage and GC for n=1…10, so So
 we probably don't have major issues with our use of Haskell except that
 ideally GC time would be near 0.
@@ -44,3 +45,13 @@ call to a call to a call … effectively unrolling it, which then (we guess)
 allows GHC to remove duplicated tests in the sequence, which it could not
 do otherwise. (We presume that GHC doesn't unroll the loop itself because
 the list of rules, at a couple of dozen, is not tiny.)
+
+
+    n(M)    MUT(s)  GC(s)   GC(GB)
+    ───────────────────────────────────────────────────────────────
+    10      13      0       0       Original
+    10      15      0       0       Sorted rules
+    ───────────────────────────────────────────────────────────────
+
+
+
