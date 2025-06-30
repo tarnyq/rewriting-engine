@@ -125,34 +125,34 @@ data KItem = KI_Stmts Stmts
 imp :: Semantics State
 imp =   liftK     assignHeat    `orElse`
         liftK     assignCool    `orElse`
-                  assign        -- `orElse`
---                  lookupVar     `orElse`
---        liftK     seqStmt       `orElse`
---        liftStmts while         `orElse`
---        liftK     ifHeat        `orElse`
---        liftK     ifCool        `orElse`
---        liftStmts ifT           `orElse`
---        liftStmts ifF           `orElse`
---        liftK     notHeat       `orElse`
---        liftK     notCool       `orElse`
---        liftBExp  notBExp       `orElse`
---        liftK     leHeatL       `orElse`
---        liftK     leCoolL       `orElse`
---        liftK     leHeatR       `orElse`
---        liftK     leCoolR       `orElse`
---        liftBExp  le            `orElse`
---        liftK     addHeatL      `orElse`
---        liftK     addCoolL      `orElse`
---        liftK     addHeatR      `orElse`
---        liftK     addCoolR      `orElse`
---        liftAExp  add           `orElse`
---        liftK     divHeatL      `orElse`
---        liftK     divCoolL      `orElse`
---        liftK     divHeatR      `orElse`
---        liftK     divCoolR      `orElse`
---        liftAExp  div           `orElse`
---        liftAExp  negate        `orElse`
----        liftStmts block
+                  assign        `orElse`
+                  lookupVar     `orElse`
+        liftK     seqStmt       `orElse`
+        liftStmts while         `orElse`
+        liftK     ifHeat        `orElse`
+        liftK     ifCool        `orElse`
+        liftStmts ifT           `orElse`
+        liftStmts ifF           `orElse`
+        liftK     notHeat       `orElse`
+        liftK     notCool       `orElse`
+        liftBExp  notBExp       `orElse`
+        liftK     leHeatL       `orElse`
+        liftK     leCoolL       `orElse`
+        liftK     leHeatR       `orElse`
+        liftK     leCoolR       `orElse`
+        liftBExp  le            `orElse`
+        liftK     addHeatL      `orElse`
+        liftK     addCoolL      `orElse`
+        liftK     addHeatR      `orElse`
+        liftK     addCoolR      `orElse`
+        liftAExp  add           `orElse`
+        liftK     divHeatL      `orElse`
+        liftK     divCoolL      `orElse`
+        liftK     divHeatR      `orElse`
+        liftK     divCoolR      `orElse`
+        liftAExp  div           `orElse`
+        liftAExp  negate        `orElse`
+        liftStmts block
     where
         seqStmt :: Rewrite K
         seqStmt ((KI_Stmts (StPair s1 s2)):rest)
