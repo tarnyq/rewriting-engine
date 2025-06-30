@@ -107,7 +107,7 @@ pcre-config --version >/dev/null 2>&1 || {
     sudo apt -q -q -qq install -y -q -q -qq libpcre3-dev \
         || die 3 'Cannot `apt install libpcre3-dev`; try your own package manager?'
 }
-stack build ghc-core
+stack exec -- ghc-core -h >/dev/null 2>&1 || stack build ghc-core
 
 echo '━━━━━ Build'
 cd "$PROJDIR"
