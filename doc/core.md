@@ -6,6 +6,10 @@ readable (and colourized, if you like) GHC core output is available via
 `stack exec -- ghc-core`. (The initial `--` is to ensure subsequent options
 go to `ghc-core`, not `stack exec`.)
 
+`Test -g` will generate core files for `src/*.hs`, named for the current
+commit. This is not fast, but is useful for automatically generating core
+files as you move through commits that let you compare the generated code.
+
 Typical commands are as follows. Note that this will produce intermediate
 files (`*.hi` interface definitions, `*.o` object files, etc.) in the
 source directories. There appears to be no way to move these at the moment,

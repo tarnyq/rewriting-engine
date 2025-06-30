@@ -5,7 +5,12 @@ trap 'ec=$?; echo 1>&2 "INTERNAL ERROR: ec=$ec line=$LINENO cmd=$BASH_COMMAND";
       exit $ec;' ERR
 
 die()  { ec="$1"; shift; echo 1>&2 "ERROR ($ec):" "$@"; exit $ec; }
-fail() { ec=$?; echo "FAILED exitcode=$ec ($(elapsed)s)"; exit $ec; }
+fail() {
+    ec=$?
+    [[ -n $@ ]] && echo 1>&2 "$@"
+    echo 1>&2 "FAILED exitcode=$ec ($(elapsed)s)"
+    exit $ec
+}
 
 elapsed_start=$(date +%s)
 elapsed() { echo $(( $(date +%s) - $elapsed_start )); }
@@ -14,7 +19,10 @@ elapsed() { echo $(( $(date +%s) - $elapsed_start )); }
 
 clean() {
     local cleantrees=(
-        "$PROJDIR"/.build/
+        #   We don't clean .build/ghc-core/*.core on a "small" clean
+        #   because this doesn't affect future builds at all, and
+        #   regenerating them can be a pain.
+        "$BUILDDIR"/ghc-core/obj/
         #   We keep this here instead of putting it under .build/ because
         #   we expect stand-alone `stack` invocations which will look for
         #   it only here.
@@ -33,15 +41,18 @@ clean() {
 ####################################################################
 
 export PROJDIR=$(cd "$(dirname "$0")" && pwd -P)
+export BUILDDIR="$PROJDIR/.build"
 
 verbosity=0         # Cabal verbosity level (default 1 but we always override
                     # it) and perhaps other things.
 lhver=              # Switch to different version of Liquid Haskell.
 ghci_modules=()     # Run ghci after build, :load! the given modules, and
 ghci_exprs=()       #   then evaluate the given expressions.
+gen_ghc_core=false  # Generate .build/ghc-core/ files for all source files.
 while [[ ${#@} -gt 0 ]]; do case "$1" in
     --)             shift; break;;
     -C|-c)          shift; clean;;
+    -g)             shift; gen_ghc_core=true;;
     -v|--verbose)   shift; verbosity=$(($verbosity+1));;    # multiple times ok
     -l|--lhver)     shift; lhver="$1"; shift;;
     -m|--module)    shift; ghci_modules+=("$1"); shift;;
@@ -125,5 +136,23 @@ stack build --cabal-verbosity=$verbosity || fail
     ghci_inputs+=("${ghci_exprs[@]}")
     printf '%s\n' "${ghci_inputs[@]}" | stack ghci --no-load || fail
 }
+
+#   Automatically generate core output for later examination
+#   and comparison between commits.
+$gen_ghc_core && (
+    command cd "$PROJDIR"
+    commit=$(git describe --always --dirty)
+    mkdir -p .build/ghc-core/obj/
+    for src in src/*.hs; do
+        #   -O2 is the default; we use -O1 because that's the much more
+        #   typical optimisation level for production code and compiles
+        #   faster for very little worse execution time and space.
+        stack exec \
+            -- ghc-core --no-syntax --no-cast --no-asm \
+            -- -O1 -hidir .build/ghc-core/obj/ -odir .build/ghc-core/obj/ \
+            "$src" > ".build/ghc-core/$(basename "$src" .hs)-$commit.core" \
+            || fail "ghc-core: cannot compile $src"
+    done
+)
 
 echo "OK ($(elapsed)s)"
