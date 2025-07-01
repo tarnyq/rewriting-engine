@@ -1,6 +1,16 @@
 Benchmark Notes
 ===============
 
+K `bin/benchmark`
+-----------------
+
+    n(M)    interpreter(s)  Notes
+    ───────────────────────────────────────────────────────────────
+    10      16.7            kompile -Odefault
+    10      11.6            kompile -O2
+    10       9.9            kompile -O3
+
+
 Haskell `bin/benchmark`
 -----------------------
 
