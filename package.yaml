@@ -59,6 +59,7 @@ library:
 executables:
   benchmark:
     main:               Benchmark.hs
+    other-modules:      []
     source-dirs:        app
     dependencies:       [kmonad]
   opttest:
