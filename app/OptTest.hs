@@ -22,17 +22,17 @@ decrement :: C -> Maybe C
 decrement (CI n)  | n > 0  = Just (CI $ n-1)
 decrement _                = Nothing
 
-mynot :: C -> Maybe C
-mynot (CB b) = Just (CB $ not b)
-mynot _      = Nothing
+toggle :: C -> Maybe C
+toggle (CB b) = Just (CB $ not b)
+toggle _      = Nothing
 
 ----------------------------------------------------------------------
 
 next_dist :: State -> Maybe State
-next_dist = (liftC decrement) `orElse` (liftC mynot)
+next_dist = (liftC decrement) `orElse` (liftC toggle)
 
 next_undist :: State -> Maybe State
-next_undist = liftC (decrement `orElse` mynot)
+next_undist = liftC (decrement `orElse` toggle)
 
 ----------------------------------------------------------------------
 --  The Rewrite Rule System
