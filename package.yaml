@@ -24,6 +24,7 @@ extra-source-files:
 #   For further info and references, see doc/haskell.md.
 
 default-extensions:         # Enabled in every module.
+  - NumericUnderscores
   - BangPatterns
   - StandaloneDeriving
 
