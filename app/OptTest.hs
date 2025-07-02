@@ -29,10 +29,9 @@ toggle _      = Nothing
 ----------------------------------------------------------------------
 
 next_dist :: State -> Maybe State
-next_dist = (liftC decrement) `orElse` (liftC toggle)
-
+next_dist = (liftC toggle) `orElse` (liftC decrement)
 next_undist :: State -> Maybe State
-next_undist = liftC (decrement `orElse` toggle)
+next_undist = liftC (toggle `orElse` decrement)
 
 ----------------------------------------------------------------------
 --  The Rewrite Rule System
