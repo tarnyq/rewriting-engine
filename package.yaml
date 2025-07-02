@@ -64,7 +64,8 @@ executables:
     dependencies:       [kmonad]
   opttest:
     main:               OptTest.hs
-    source-dirs:        src
+    other-modules:      []
+    source-dirs:        app
     dependencies:       [kmonad]
     ghc-options:
       - -main-is OptTest.main
