@@ -130,7 +130,7 @@ rm -f stack.yaml.lock
 stack build --cabal-verbosity=$verbosity || fail
 
 [[ -n ${ghci_exprs[*]} ]] && {
-    ghci_inputs=()
+    ghci_inputs=(':set prompt "▪ "')
     [[ -n ${ghci_modules[*]} ]] && ghci_inputs+=(":load! ${ghci_modules[*]}")
     ghci_inputs+=("Prelude.putStrLn $ Prelude.replicate 79 '─'")
     ghci_inputs+=("${ghci_exprs[@]}")
