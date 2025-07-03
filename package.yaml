@@ -58,17 +58,14 @@ library:
 
 executables:
   benchmark:
+    source-dirs:        app
     main:               Benchmark.hs
     other-modules:      []
-    source-dirs:        app
     dependencies:       [kmonad]
   opttest:
+    source-dirs:        app
     main:               OptTest.hs
     other-modules:      []
-    source-dirs:        app
-    dependencies:       [kmonad]
-    ghc-options:
-      - -main-is OptTest.main
 
 tests:
   kmonad-test:

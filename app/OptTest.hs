@@ -1,6 +1,6 @@
 {-# OPTIONS_GHC -Wno-unused-top-binds #-}
 
-module OptTest (main) where
+module Main (main) where
 
 -- A "deep state."
 data State  = A A           | AStuff        deriving (Show)
