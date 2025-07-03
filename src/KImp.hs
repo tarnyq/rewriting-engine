@@ -165,8 +165,7 @@ imp =   liftK     assignHeat    `orElse`
         assign _ = Nothing
 
         assignHeat :: Rewrite K
-        assignHeat ((KI_Stmts (_ := Int _)):_) = Nothing
-        assignHeat ((KI_Stmts (id := aexp)):rest)
+        assignHeat ((KI_Stmts (id := aexp)):rest) | not (isInt aexp)
                = Just $ (KI_AExp aexp):(KI_Stmts (id := AHole)):rest
         assignHeat _ = Nothing
 
@@ -193,8 +192,7 @@ imp =   liftK     assignHeat    `orElse`
         ifF _ = Nothing
 
         ifHeat :: Rewrite K
-        ifHeat ((KI_Stmts (If (Bool _) _ _)):_) = Nothing
-        ifHeat ((KI_Stmts (If cond stmtsTrue stmtsFalse)):rest)
+        ifHeat ((KI_Stmts (If cond stmtsTrue stmtsFalse)):rest) | not (isBool cond)
              = Just $ (KI_BExp cond):stmts:rest
              where stmts = (KI_Stmts (If BHole stmtsTrue stmtsFalse))
         ifHeat _ = Nothing
@@ -205,8 +203,7 @@ imp =   liftK     assignHeat    `orElse`
         ifCool _ = Nothing
 
         notHeat :: Rewrite K
-        notHeat ((KI_BExp (Not (Bool _))):_) = Nothing
-        notHeat ((KI_BExp (Not bexp)):rest)
+        notHeat ((KI_BExp (Not bexp)):rest) | not (isBool bexp)
                = Just $ (KI_BExp bexp):(KI_BExp (Not BHole)):rest
         notHeat _ = Nothing
 
@@ -220,8 +217,7 @@ imp =   liftK     assignHeat    `orElse`
         notBExp _ = Nothing
 
         leHeatL :: Rewrite K
-        leHeatL ((KI_BExp (Int _ :<= _)):_) = Nothing
-        leHeatL ((KI_BExp (lhs :<= rhs)):rest)
+        leHeatL ((KI_BExp (lhs :<= rhs)):rest) | not (isInt lhs)
               = Just $ (KI_AExp lhs):(KI_BExp (AHole :<= rhs)):rest
         leHeatL _ = Nothing
 
@@ -231,8 +227,7 @@ imp =   liftK     assignHeat    `orElse`
         leCoolL _ = Nothing
 
         leHeatR :: Rewrite K
-        leHeatR ((KI_BExp (Int _ :<= Int _)):_) = Nothing
-        leHeatR ((KI_BExp (lhs :<= rhs)):rest)
+        leHeatR ((KI_BExp (lhs :<= rhs)):rest) | not $ (isInt lhs) && (isInt rhs)
               = Just $ (KI_AExp rhs):(KI_BExp (lhs :<= AHole)):rest
         leHeatR _ = Nothing
 
@@ -246,8 +241,7 @@ imp =   liftK     assignHeat    `orElse`
         le _ = Nothing
 
         addHeatL :: Rewrite K
-        addHeatL ((KI_AExp (Int _ :+ _)):_) = Nothing
-        addHeatL ((KI_AExp (lhs :+ rhs)):rest)
+        addHeatL ((KI_AExp (lhs :+ rhs)):rest) | not (isInt lhs)
                = Just $ (KI_AExp lhs):(KI_AExp (AHole :+ rhs)):rest
         addHeatL _ = Nothing
 
@@ -257,8 +251,7 @@ imp =   liftK     assignHeat    `orElse`
         addCoolL _ = Nothing
 
         addHeatR :: Rewrite K
-        addHeatR ((KI_AExp (Int _ :+ Int _)):_) = Nothing
-        addHeatR ((KI_AExp (Int lhs :+ rhs)):rest)
+        addHeatR ((KI_AExp (Int lhs :+ rhs)):rest) | not (isInt rhs)
                = Just $ (KI_AExp rhs):(KI_AExp (Int lhs :+ AHole)):rest
         addHeatR _ = Nothing
 
@@ -276,8 +269,7 @@ imp =   liftK     assignHeat    `orElse`
         negate _ = Nothing
 
         divHeatL :: Rewrite K
-        divHeatL ((KI_AExp (Int _ :/ _)):_) = Nothing
-        divHeatL ((KI_AExp (lhs :/ rhs)):rest)
+        divHeatL ((KI_AExp (lhs :/ rhs)):rest) | not (isInt lhs)
                = Just $ (KI_AExp lhs):(KI_AExp (AHole :/ rhs)):rest
         divHeatL _ = Nothing
 
@@ -287,8 +279,7 @@ imp =   liftK     assignHeat    `orElse`
         divCoolL _ = Nothing
 
         divHeatR :: Rewrite K
-        divHeatR ((KI_AExp (Int _ :/ Int _)):_) = Nothing
-        divHeatR ((KI_AExp (Int lhs :/ rhs)):rest)
+        divHeatR ((KI_AExp (Int lhs :/ rhs)):rest) | not (isInt rhs)
                = Just $ (KI_AExp rhs):(KI_AExp (Int lhs :/ AHole)):rest
         divHeatR _ = Nothing
 
@@ -311,6 +302,15 @@ imp =   liftK     assignHeat    `orElse`
         block :: Rewrite Stmts
         block (Block (StmtsBlock s)) = Just s
         block _ = Nothing
+
+        isInt :: AExp -> Bool
+        isInt (Int _) = True
+        isInt _       = False
+
+        isBool :: BExp -> Bool
+        isBool (Bool _) = True
+        isBool _       = False
+
 
 
 --  XXX KMonad should generate this.
