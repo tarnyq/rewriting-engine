@@ -4,6 +4,9 @@ set -Eeuo pipefail
 trap 'ec=$?; echo 1>&2 "INTERNAL ERROR: ec=$ec line=$LINENO cmd=$BASH_COMMAND";
       exit $ec;' ERR
 
+elapsed_start=$(date +%s)
+elapsed() { echo $(( $(date +%s) - $elapsed_start )); }
+
 die()  { ec="$1"; shift; echo 1>&2 "ERROR ($ec):" "$@"; exit $ec; }
 fail() {
     ec=$?
@@ -12,8 +15,18 @@ fail() {
     exit $ec
 }
 
-elapsed_start=$(date +%s)
-elapsed() { echo $(( $(date +%s) - $elapsed_start )); }
+since_timestamp() {
+    local tsdir="$BUILDDIR/timestamp"
+    local stampfile="$1"; shift
+    local seconds="$1"; shift
+    [ "${seconds}" -gt 0 ]  # bad arg generates internal error
+    mkdir -p "$tsdir"
+    local last_time=$(stat -c %Y "$tsdir/$stampfile" 2>/dev/null || true)
+    [[ $(($last_time + $seconds)) -gt $(date +%s) ]] && return
+    touch "$tsdir/$stampfile"
+    echo "$@"
+    "$@"
+}
 
 ####################################################################
 
@@ -23,6 +36,7 @@ clean() {
         #   because this doesn't affect future builds at all, and
         #   regenerating them can be a pain.
         "$BUILDDIR"/ghc-core/obj/
+        "$BUILDDIR"/timestamps/
         #   We keep this here instead of putting it under .build/ because
         #   we expect stand-alone `stack` invocations which will look for
         #   it only here.
@@ -123,10 +137,9 @@ stack exec -- ghc-core -h >/dev/null 2>&1 || stack build ghc-core
 echo '━━━━━ Build'
 cd "$PROJDIR"
 #   We want to regularly build with the latest versions of our dependencies
-#   so we can quickly see any problems they introduce. If rebuilding the
-#   lock file every time becomes too slow, it's fine to remove it just once
-#   per day or whatever.
-rm -f stack.yaml.lock
+#   so we can quickly see any problems they introduce. This can slow things
+#   down a bit, so just do this daily.
+since_timestamp stack.yaml.lock 86400 rm -f stack.yaml.lock
 stack build --cabal-verbosity=$verbosity || fail
 
 [[ -n ${ghci_exprs[*]} ]] && {
