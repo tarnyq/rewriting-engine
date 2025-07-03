@@ -4,8 +4,11 @@ set -Eeuo pipefail
 trap 'ec=$?; echo 1>&2 "INTERNAL ERROR: ec=$ec line=$LINENO cmd=$BASH_COMMAND";
       exit $ec;' ERR
 
-elapsed_start=$(date +%s)
-elapsed() { echo $(( $(date +%s) - $elapsed_start )); }
+elapsed_start=$(date +%s%2N)   # 10s of milliseconds since the epoch
+elapsed() {                    # fractional seconds (2 places) since start
+    local msx10=$(( $(date +%s%2N) - $elapsed_start ))
+    echo "$(($msx10/100)).$(($msx10%100))"
+}
 
 die()  { ec="$1"; shift; echo 1>&2 "ERROR ($ec):" "$@"; exit $ec; }
 fail() {
