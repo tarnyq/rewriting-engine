@@ -20,6 +20,7 @@ module KImp
     , sum_imp, divide_imp, div0_imp     -- sample programs
     ) where
 
+import Control.Applicative
 import Data.Map (Map, findWithDefault, fromList, insert, member)
 
 {----------------------------------------------------------------------
@@ -123,40 +124,40 @@ data KItem = KI_Stmts Stmts
            deriving Show
 
 imp :: Semantics State
-imp =   liftK     assignHeat    `orElse`
-        liftK     assignCool    `orElse`
+imp =             assignHeat    `orElse`
+                  assignCool    `orElse`
                   assign        `orElse`
                   lookupVar     `orElse`
-        liftK     seqStmt       `orElse`
-        liftStmts while         `orElse`
-        liftK     ifHeat        `orElse`
-        liftK     ifCool        `orElse`
-        liftStmts ifT           `orElse`
-        liftStmts ifF           `orElse`
-        liftK     notHeat       `orElse`
-        liftK     notCool       `orElse`
-        liftBExp  notBExp       `orElse`
-        liftK     leHeatL       `orElse`
-        liftK     leCoolL       `orElse`
-        liftK     leHeatR       `orElse`
-        liftK     leCoolR       `orElse`
-        liftBExp  le            `orElse`
-        liftK     addHeatL      `orElse`
-        liftK     addCoolL      `orElse`
-        liftK     addHeatR      `orElse`
-        liftK     addCoolR      `orElse`
-        liftAExp  add           `orElse`
-        liftK     divHeatL      `orElse`
-        liftK     divCoolL      `orElse`
-        liftK     divHeatR      `orElse`
-        liftK     divCoolR      `orElse`
-        liftAExp  div           `orElse`
-        liftAExp  negate        `orElse`
-        liftStmts block
+                  seqStmt       `orElse`
+                  while         `orElse`
+                  ifHeat        `orElse`
+                  ifCool        `orElse`
+                  ifT           `orElse`
+                  ifF           `orElse`
+                  notHeat       `orElse`
+                  notCool       `orElse`
+                  notBExp       `orElse`
+                  leHeatL       `orElse`
+                  leCoolL       `orElse`
+                  leHeatR       `orElse`
+                  leCoolR       `orElse`
+                  le            `orElse`
+                  addHeatL      `orElse`
+                  addCoolL      `orElse`
+                  addHeatR      `orElse`
+                  addCoolR      `orElse`
+                  add           `orElse`
+                  divHeatL      `orElse`
+                  divCoolL      `orElse`
+                  divHeatR      `orElse`
+                  divCoolR      `orElse`
+                  div           `orElse`
+                  negate        `orElse`
+                  block
     where
-        seqStmt :: Rewrite K
-        seqStmt ((KI_Stmts (StPair s1 s2)):rest)
-              = Just $ (KI_Stmts s1):(KI_Stmts s2):rest
+        seqStmt :: Rewrite State
+        seqStmt (State ((KI_Stmts (StPair s1 s2)):rest) store)
+              = Just $ State ((KI_Stmts s1):(KI_Stmts s2):rest) store
         seqStmt _ = Nothing
 
         assign :: Rewrite State
@@ -164,132 +165,140 @@ imp =   liftK     assignHeat    `orElse`
              = Just $ State rest (insert id i store)
         assign _ = Nothing
 
-        assignHeat :: Rewrite K
-        assignHeat ((KI_Stmts (id := aexp)):rest) | not (isInt aexp)
-               = Just $ (KI_AExp aexp):(KI_Stmts (id := AHole)):rest
+        assignHeat :: Rewrite State
+        assignHeat (State ((KI_Stmts (id := aexp)):rest) store) | not (isInt aexp)
+               = Just $ State ((KI_AExp aexp):(KI_Stmts (id := AHole)):rest) store
         assignHeat _ = Nothing
 
-        assignCool :: Rewrite K
-        assignCool ((KI_AExp (Int i)):(KI_Stmts (id := AHole)):rest)
-               = Just $ (KI_Stmts (id := (Int i))):rest
+        assignCool :: Rewrite State
+        assignCool (State ((KI_AExp (Int i)):(KI_Stmts (id := AHole)):rest) store)
+               = Just $ State ((KI_Stmts (id := (Int i))):rest) store
         assignCool _ = Nothing
 
-
-        while :: Rewrite Stmts
-        while (While cond body)
-            = Just $ (If cond
-                         (StmtsBlock $ StPair (Block body)
-                                              (While cond body))
-                         EmptyBlock)
+        while :: Rewrite State
+        while (State ((KI_Stmts (While cond body)):rest) store)
+            = Just $ (State ((KI_Stmts (If cond
+                                          (StmtsBlock $ StPair (Block body)
+                                                               (While cond body))
+                                          EmptyBlock)
+                             ):rest)
+                            store)
         while _ = Nothing
 
-        ifT :: Rewrite Stmts
-        ifT (If (Bool True) stmtsTrue _) = Just $ (Block stmtsTrue)
+        ifT :: Rewrite State
+        ifT (State (KI_Stmts (If (Bool True) stmtsTrue _):rest) store)
+              = Just $ State (KI_Stmts (Block stmtsTrue):rest) store
         ifT _ = Nothing
 
-        ifF :: Rewrite Stmts
-        ifF (If (Bool False) _ stmtsFalse) = Just $ (Block stmtsFalse)
+        ifF :: Rewrite State
+        ifF (State (KI_Stmts (If (Bool False) _ stmtsFalse):rest) store)
+              = Just $ State ((KI_Stmts (Block stmtsFalse)):rest) store
         ifF _ = Nothing
 
-        ifHeat :: Rewrite K
-        ifHeat ((KI_Stmts (If cond stmtsTrue stmtsFalse)):rest) | not (isBool cond)
-             = Just $ (KI_BExp cond):stmts:rest
+        ifHeat :: Rewrite State
+        ifHeat (State ((KI_Stmts (If cond stmtsTrue stmtsFalse)):rest) store) | not (isBool cond)
+             = Just $ State ((KI_BExp cond):stmts:rest) store
              where stmts = (KI_Stmts (If BHole stmtsTrue stmtsFalse))
         ifHeat _ = Nothing
 
-        ifCool :: Rewrite K
-        ifCool ((KI_BExp (Bool b)):(KI_Stmts (If BHole stmtsTrue stmtsFalse)):rest)
-               = Just $ ((KI_Stmts (If (Bool b) stmtsTrue stmtsFalse)):rest)
+        ifCool :: Rewrite State
+        ifCool (State ((KI_BExp (Bool b)):(KI_Stmts (If BHole stmtsTrue stmtsFalse)):rest) store)
+               = Just $ State ((KI_Stmts (If (Bool b) stmtsTrue stmtsFalse)):rest) store
         ifCool _ = Nothing
 
-        notHeat :: Rewrite K
-        notHeat ((KI_BExp (Not bexp)):rest) | not (isBool bexp)
-               = Just $ (KI_BExp bexp):(KI_BExp (Not BHole)):rest
+        notHeat :: Rewrite State
+        notHeat (State ((KI_BExp (Not bexp)):rest) store) | not (isBool bexp)
+               = Just $ State ((KI_BExp bexp):(KI_BExp (Not BHole)):rest) store
         notHeat _ = Nothing
 
-        notCool :: Rewrite K
-        notCool ((KI_BExp (Bool b)):(KI_BExp (Not BHole)):rest)
-               = Just $ ((KI_BExp (Not (Bool b))):rest)
+        notCool :: Rewrite State
+        notCool (State ((KI_BExp (Bool b)):(KI_BExp (Not BHole)):rest) store)
+               = Just $ State ((KI_BExp (Not (Bool b))):rest) store
         notCool _ = Nothing
 
-        notBExp :: Rewrite BExp
-        notBExp (Not (Bool b)) = Just $ (Bool (not b))
+
+        notBExp :: Rewrite State
+        notBExp (State ((KI_BExp (Not (Bool b))):rest) store) = Just $ (State ((KI_BExp (Bool (not b))):rest) store)
         notBExp _ = Nothing
 
-        leHeatL :: Rewrite K
-        leHeatL ((KI_BExp (lhs :<= rhs)):rest) | not (isInt lhs)
-              = Just $ (KI_AExp lhs):(KI_BExp (AHole :<= rhs)):rest
+        leHeatL :: Rewrite State
+        leHeatL (State ((KI_BExp (lhs :<= rhs)):rest) store) | not (isInt lhs)
+              = Just $ State ((KI_AExp lhs):(KI_BExp (AHole :<= rhs)):rest) store
         leHeatL _ = Nothing
 
-        leCoolL :: Rewrite K
-        leCoolL ((KI_AExp (Int i)):(KI_BExp (AHole :<= rhs)):rest)
-              = Just $ (KI_BExp (Int i :<= rhs)):rest
+        leCoolL :: Rewrite State
+        leCoolL (State ((KI_AExp (Int i)):(KI_BExp (AHole :<= rhs)):rest) store)
+              = Just $ State ((KI_BExp (Int i :<= rhs)):rest) store
         leCoolL _ = Nothing
 
-        leHeatR :: Rewrite K
-        leHeatR ((KI_BExp (lhs :<= rhs)):rest) | not $ (isInt lhs) && (isInt rhs)
-              = Just $ (KI_AExp rhs):(KI_BExp (lhs :<= AHole)):rest
+        leHeatR :: Rewrite State
+        leHeatR (State ((KI_BExp (lhs :<= rhs)):rest) store) | not $ (isInt lhs) && (isInt rhs)
+              = Just $ State ((KI_AExp rhs):(KI_BExp (lhs :<= AHole)):rest) store
         leHeatR _ = Nothing
 
-        leCoolR :: Rewrite K
-        leCoolR ((KI_AExp (Int i)):(KI_BExp (lhs :<= AHole)):rest)
-              = Just $ (KI_BExp (lhs :<= Int i)):rest
+        leCoolR :: Rewrite State
+        leCoolR (State ((KI_AExp (Int i)):(KI_BExp (lhs :<= AHole)):rest) store)
+              = Just $ State ((KI_BExp (lhs :<= Int i)):rest) store
         leCoolR _ = Nothing
 
-        le :: Rewrite BExp
-        le (Int i :<= Int j) = Just $ (Bool (i <= j))
+        le :: Rewrite State
+        le (State ((KI_BExp (Int i :<= Int j)):rest) store)
+             = Just $ State ((KI_BExp (Bool (i <= j))):rest) store
         le _ = Nothing
 
-        addHeatL :: Rewrite K
-        addHeatL ((KI_AExp (lhs :+ rhs)):rest) | not (isInt lhs)
-               = Just $ (KI_AExp lhs):(KI_AExp (AHole :+ rhs)):rest
+        addHeatL :: Rewrite State
+        addHeatL (State ((KI_AExp (lhs :+ rhs)):rest) store) | not (isInt lhs)
+               = Just $ State ((KI_AExp lhs):(KI_AExp (AHole :+ rhs)):rest) store
         addHeatL _ = Nothing
 
-        addCoolL :: Rewrite K
-        addCoolL ((KI_AExp (Int i)):(KI_AExp (AHole :+ rhs)):rest)
-               = Just $ (KI_AExp (Int i :+ rhs)):rest
+        addCoolL :: Rewrite State
+        addCoolL (State ((KI_AExp (Int i)):(KI_AExp (AHole :+ rhs)):rest) store)
+               = Just $ State ((KI_AExp (Int i :+ rhs)):rest) store
         addCoolL _ = Nothing
 
-        addHeatR :: Rewrite K
-        addHeatR ((KI_AExp (Int lhs :+ rhs)):rest) | not (isInt rhs)
-               = Just $ (KI_AExp rhs):(KI_AExp (Int lhs :+ AHole)):rest
+        addHeatR :: Rewrite State
+        addHeatR (State ((KI_AExp (Int lhs :+ rhs)):rest) store) | not (isInt rhs)
+               = Just $ State ((KI_AExp rhs):(KI_AExp (Int lhs :+ AHole)):rest) store
         addHeatR _ = Nothing
 
-        addCoolR :: Rewrite K
-        addCoolR ((KI_AExp (Int i)):(KI_AExp (Int lhs :+ AHole)):rest)
-               = Just $ (KI_AExp (Int lhs :+ Int i)):rest
+        addCoolR :: Rewrite State
+        addCoolR (State ((KI_AExp (Int i)):(KI_AExp (Int lhs :+ AHole)):rest) store)
+               = Just $ State ((KI_AExp (Int lhs :+ Int i)):rest) store
         addCoolR _ = Nothing
 
-        add :: Rewrite AExp
-        add (Int i :+ Int j) = Just $ (Int (i + j))
+        add :: Rewrite State
+        add (State ((KI_AExp (Int i :+ Int j)):rest) store)
+              = Just $ State ((KI_AExp (Int (i + j))):rest) store
         add _ = Nothing
 
-        negate :: Rewrite AExp
-        negate (Negate i) = Just $ (Int (-1 * i))
+        negate :: Rewrite State
+        negate (State ((KI_AExp (Negate i)):rest) store)
+                 = Just $ State ((KI_AExp (Int (-1 * i))):rest) store
         negate _ = Nothing
 
-        divHeatL :: Rewrite K
-        divHeatL ((KI_AExp (lhs :/ rhs)):rest) | not (isInt lhs)
-               = Just $ (KI_AExp lhs):(KI_AExp (AHole :/ rhs)):rest
+        divHeatL :: Rewrite State
+        divHeatL (State ((KI_AExp (lhs :/ rhs)):rest) store) | not (isInt lhs)
+               = Just $ State ((KI_AExp lhs):(KI_AExp (AHole :/ rhs)):rest) store
         divHeatL _ = Nothing
 
-        divCoolL :: Rewrite K
-        divCoolL ((KI_AExp (Int i)):(KI_AExp (AHole :/ rhs)):rest)
-               = Just $ (KI_AExp (Int i :/ rhs)):rest
+        divCoolL :: Rewrite State
+        divCoolL (State ((KI_AExp (Int i)):(KI_AExp (AHole :/ rhs)):rest) store)
+                   = Just $ State ((KI_AExp (Int i :/ rhs)):rest) store
         divCoolL _ = Nothing
 
-        divHeatR :: Rewrite K
-        divHeatR ((KI_AExp (Int lhs :/ rhs)):rest) | not (isInt rhs)
-               = Just $ (KI_AExp rhs):(KI_AExp (Int lhs :/ AHole)):rest
+        divHeatR :: Rewrite State
+        divHeatR (State ((KI_AExp (Int lhs :/ rhs)):rest) store) | not (isInt rhs)
+               = Just $ State ((KI_AExp rhs):(KI_AExp (Int lhs :/ AHole)):rest) store
         divHeatR _ = Nothing
 
-        divCoolR :: Rewrite K
-        divCoolR ((KI_AExp (Int i)):(KI_AExp (Int lhs :/ AHole)):rest)
-               = Just $ (KI_AExp (Int lhs :/ Int i)):rest
+        divCoolR :: Rewrite State
+        divCoolR (State ((KI_AExp (Int i)):(KI_AExp (Int lhs :/ AHole)):rest) store)
+               = Just $ State ((KI_AExp (Int lhs :/ Int i)):rest) store
         divCoolR _ = Nothing
 
-        div :: Rewrite AExp
-        div (Int i :/ Int j) | j /= 0 = Just $ (Int (i `Prelude.div` j))
+        div :: Rewrite State
+        div (State ((KI_AExp (Int i :/ Int j)):rest) store) | j /= 0
+              = Just $ State ((KI_AExp (Int (i `Prelude.div` j))):rest) store
         div _ = Nothing
 
         lookupVar :: Rewrite State
@@ -299,8 +308,9 @@ imp =   liftK     assignHeat    `orElse`
                 where exp = KI_AExp $ Int $ findWithDefault undefined x store
         lookupVar _ = Nothing
 
-        block :: Rewrite Stmts
-        block (Block (StmtsBlock s)) = Just s
+        block :: Rewrite State
+        block (State ((KI_Stmts (Block (StmtsBlock s))):rest) store)
+                = Just (State ((KI_Stmts s):rest) store)
         block _ = Nothing
 
         isInt :: AExp -> Bool
@@ -383,9 +393,7 @@ div0_imp = Pgm ids stmts  where
 -- Library Functions (Not part of KImp)
 
 orElse :: Rewrite a -> Rewrite a -> Rewrite a
-orElse r1 r2 = \state -> case (r1 state) of
-                              Nothing  -> r2 state
-                              Just st' -> Just st'
+orElse r s = \state -> (r state) <|> (s state)
 
 eval :: Semantics a -> a -> a
 eval rewrites state = eval' state (rewrites state)  where
