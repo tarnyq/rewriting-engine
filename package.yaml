@@ -6,10 +6,10 @@
 
 spec-version:       0.36.0
 
-name:                kmonad
-version:             0.1.0.0
-github:              nishantjr/kmonad
-license:             AllRightsReserved
+name:               kmonad
+version:            0.1.0.0
+github:             nishantjr/kmonad
+license:            AllRightsReserved
 author:
   - "Nishant Rodrigues <nishantjr@gmail.com>"
   - "Curt J. Sampson <cjs@cynic.net>"
@@ -60,17 +60,16 @@ library:
 
 executables:
   benchmark:
-    main:               Benchmark.hs
     source-dirs:        app
-    dependencies:       [kmonad]
+    main:               Benchmark.hs
+    dependencies:       [ kmonad ]
 
 tests:
   kmonad-test:
-    main:                Spec.hs
     source-dirs:         unit-test
+    main:                Spec.hs
     ghc-options:
       - -threaded
       - -rtsopts
       - -with-rtsopts=-N
-    dependencies:
-      - kmonad
+    dependencies:       [ kmonad ]
