@@ -62,6 +62,13 @@ next_dist = (liftC toggle) `orElse` (liftC decrement)
 next_undist :: State -> Maybe State
 next_undist = liftC (toggle `orElse` decrement)
 
+-- Combine all rules into a single function.
+-- (Basically, a big hand-optimization.)
+next_combined :: State -> Maybe State
+next_combined (A (B (C (CB b))))            = Just (A (B (C (CB $ not b))))
+next_combined (A (B (C (CI n)))) | n > 0    = Just (A (B (C (CI $ n-1))))
+next_combined _                             = Nothing
+
 ----------------------------------------------------------------------
 --  The Rewrite Rule System
 
@@ -98,5 +105,6 @@ main = do  print init
        where
            init    = (A (B (C (CI count))))
            count   = 1_000_000_000
-           next    = next_dist      -- ~6 seconds
+       --  next    = next_dist      -- ~6 seconds
        --  next    = next_undist    -- ~4 seconds
+           next    = next_combined  -- ~4 seconds (same because few rules)
