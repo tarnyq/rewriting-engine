@@ -4,6 +4,8 @@
 #   [2]: https://cabal.readthedocs.io/en/3.6/cabal-package.html
 #   [3]: https://docs.haskellstack.org/en/stable/topics/stack_yaml_vs_cabal_package_file/
 
+spec-version:       0.36.0
+
 name:                kmonad
 version:             0.1.0.0
 github:              nishantjr/kmonad
