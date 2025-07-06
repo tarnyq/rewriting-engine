@@ -20,7 +20,9 @@
 -}
 {-# OPTIONS_GHC -Wno-unused-top-binds #-}
 
-module Main (main) where
+module Main (main, next_dist, next_undist, next_combined) where
+-- We export all functions for which we want to see the GHC core output so
+-- that they don't get optimized away.
 
 ----------------------------------------------------------------------
 -- A "deep state."
