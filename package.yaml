@@ -59,9 +59,14 @@ library:
   source-dirs: src
 
 executables:
+  hello:
+    source-dirs:        app
+    main:               Hello.hs
+    other-modules:      []
   benchmark:
     source-dirs:        app
     main:               Benchmark.hs
+    other-modules:      []
     dependencies:       [ kmonad ]
 
 tests:
