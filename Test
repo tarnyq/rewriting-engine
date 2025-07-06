@@ -163,9 +163,8 @@ $gen_ghc_core && (
         #   -O2 is the default; we use -O1 because that's the much more
         #   typical optimisation level for production code and compiles
         #   faster for very little worse execution time and space.
-        stack exec \
-            -- ghc-core --no-syntax --no-cast --no-asm \
-            -- -O1 -hidir .build/ghc-core/obj/ -odir .build/ghc-core/obj/ \
+        stack exec -- ghc-core --no-syntax --no-cast --no-asm \
+            -- -O1 -outputdir .build/ghc-core/obj/ \
             "$src" > ".build/ghc-core/$(basename "$src" .hs)-$commit.core" \
             || fail "ghc-core: cannot compile $src"
     done
