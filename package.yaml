@@ -68,6 +68,11 @@ executables:
     main:               Benchmark.hs
     other-modules:      []
     dependencies:       [ kmonad ]
+  optimization:
+    source-dirs:        app
+    main:               Optimization.hs
+    other-modules:      []
+    dependencies:       [ kmonad ]
 
 tests:
   kmonad-test:
