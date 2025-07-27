@@ -4,10 +4,10 @@
     but it's here while we do development on the framework.)
 
     This is another implementation of the Imp programming language and
-    associated examples from the K Tutorial[1]. Unlike in TutImp, we do not
+    associated examples from the K Tutorial[1]. Unlike in KTutImp, we do not
     attempt to be 1-to-1 identical with the original semantics. For example
     we use native haskell lists, rather than the odd usage of trees of
-    Stmts (i.e. via the StPair constructor in TutImp).
+    Stmts (i.e. via the StPair constructor in KTutImp).
 
     This should, in theory, make it easier to take advandage of Haskell idioms.
 

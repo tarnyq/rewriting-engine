@@ -1,6 +1,6 @@
 module Main (main) where
 
-import KImp
+import KTutImp
 
 main :: IO ()
 --  We must evaluate `benchmark` result to full normal form to make sure it

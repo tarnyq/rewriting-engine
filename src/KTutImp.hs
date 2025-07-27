@@ -14,7 +14,7 @@
 
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# OPTIONS_GHC -Wno-unused-top-binds #-}
-module KImp
+module KTutImp
     ( Pgm, State
     , eval_imp                          -- interpreter
     , sum_imp, divide_imp, div0_imp     -- sample programs
@@ -347,7 +347,7 @@ liftAExp f state =
 ----------------------------------------------------------------------
 --  Sample programs to test syntax and semantics.
 --
---  ./Test  -m KImp -e 'mapM print $ map eval_imp […]'
+--  ./Test  -m KTutImp -e 'mapM print $ map eval_imp […]'
 --      (where … = sum_imp, divide_imp, div0_imp)
 --  (Eventually Test will be able find all of the `x :: Pgm` here
 --  and evaluate them all for you.)
@@ -380,7 +380,7 @@ div0_imp = Pgm ids stmts  where
     stmts = mkStmts [ "r" := (Int 42 :/ Int 0) ]
 
 ----------------------------------------------------------------------
--- Library Functions (Not part of KImp)
+-- Library Functions (Not part of Imp)
 
 orElse :: Rewrite a -> Rewrite a -> Rewrite a
 orElse r1 r2 = \state -> case (r1 state) of
