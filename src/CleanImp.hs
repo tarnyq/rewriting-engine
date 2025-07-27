@@ -3,17 +3,21 @@
     (This would normally be in a separate repo that uses this library,
     but it's here while we do development on the framework.)
 
-    This is a translation to KMonad of the K syntax and semantics for the
-    Imp programming language and associated examples from the K
-    Tutorial[1]. There is a separate implementation of Imp in the
-    imp-semantics repo[2] which is not the same.
+    This is another implementation of the Imp programming language and
+    associated examples from the K Tutorial[1]. Unlike in TutImp, we do not
+    attempt to be 1-to-1 identical with the original semantics. For example
+    we use native haskell lists, rather than the odd usage of trees of
+    Stmts (i.e. via the StPair constructor in TutImp).
+
+    This should, in theory, make it easier to take advandage of Haskell idioms.
+
 
     [1]: https://github.com/runtimeverification/pl-tutorial/blob/master/1_k/2_imp/lesson_5/imp.md
     [2]: https://github.com/runtimeverification/imp-semantics
 -}
 
 {-# OPTIONS_GHC -Wno-unused-top-binds #-}
-module NImp () where
+module CleanImp () where
 
 import Data.Map (Map, findWithDefault, fromList, insert, member)
 
@@ -324,7 +328,7 @@ liftAExp f state =
 ----------------------------------------------------------------------
 --  Sample programs to test syntax and semantics.
 --
---  ./Test  -m KImp -e 'mapM print $ map eval_imp […]'
+--  ./Test -m CleanImp -e 'mapM print $ map eval_imp […]'
 --      (where … = sum_imp, divide_imp, div0_imp)
 --  (Eventually Test will be able find all of the `x :: Pgm` here
 --  and evaluate them all for you.)
@@ -356,7 +360,7 @@ div0_imp = Pgm ids stmt  where
     stmt  = Block [ "r" := (Int 42 :/ Int 0) ]
 
 ----------------------------------------------------------------------
--- Library Functions (Not part of KImp)
+-- Library Functions (Not part of CleanImp)
 
 eval :: Semantics a -> a -> a
 eval rewrites state = eval' rewrites where
