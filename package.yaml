@@ -56,7 +56,7 @@ dependencies:
 #   Libraries, executables, tests.
 
 library:
-  source-dirs: src
+  source-dirs: [src, src/experiment]
 
 executables:
   hello:
