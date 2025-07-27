@@ -106,6 +106,7 @@ imp =   [ liftK     assignHeat
         ,           assign
         ,           lookupVar
         , liftK     seqStmt
+        , liftK     emptyBlock
         , liftStmt  while
         , liftK     ifHeat
         , liftK     ifCool
@@ -136,6 +137,11 @@ imp =   [ liftK     assignHeat
         seqStmt ((KI_Stmt (Block (s:ss))):rest)
               = Just $ (KI_Stmt s):(KI_Stmt $ Block ss):rest
         seqStmt _ = Nothing
+
+        emptyBlock :: Rewrite K
+        emptyBlock ((KI_Stmt (Block [])):rest)
+              = Just $ rest
+        emptyBlock _ = Nothing
 
         assign :: Rewrite State
         assign (State ((KI_Stmt (id := Int i)):rest) store)
