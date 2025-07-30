@@ -15,7 +15,7 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# OPTIONS_GHC -Wno-unused-top-binds #-}
 module KTutImp
-    ( Pgm, State
+    ( Pgm (..), State (..), AExp (..), BExp (..), Block (..), KItem (..), Stmts (..)
     , eval_imp                          -- interpreter
     , sum_imp, divide_imp, div0_imp     -- sample programs
     ) where
@@ -92,6 +92,13 @@ deriving instance Show BExp
 deriving instance Show Block
 deriving instance Show Stmts    -- Not a list, so 'showList' override pointless.
 deriving instance Show Pgm
+
+deriving instance Eq AExp
+deriving instance Eq BExp
+deriving instance Eq Block
+deriving instance Eq Stmts
+deriving instance Eq KItem
+deriving instance Eq State
 
 
 ----------------------------------------------------------------------

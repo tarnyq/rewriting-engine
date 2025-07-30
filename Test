@@ -177,4 +177,6 @@ $gen_ghc_core && (
     done
 )
 
+stack test || fail "Tests failed."
+
 echo "OK ($(elapsed)s)"
