@@ -152,7 +152,8 @@ imp =   liftK     assignHeat    `orElse`
         liftK     divCoolR      `orElse`
         liftAExp  div           `orElse`
         liftAExp  negate        `orElse`
-        liftStmts block
+        liftStmts block         `orElse`
+        liftK     emptyBlock
     where
         seqStmt :: Rewrite K
         seqStmt ((KI_Stmts (StPair s1 s2)):rest)
@@ -311,6 +312,10 @@ imp =   liftK     assignHeat    `orElse`
         block :: Rewrite Stmts
         block (Block (StmtsBlock s)) = Just s
         block _ = Nothing
+
+        emptyBlock :: Rewrite K
+        emptyBlock ((KI_Stmts (Block EmptyBlock)):rest) = Just rest
+        emptyBlock _ = Nothing
 
 
 --  XXX KMonad should generate this.
