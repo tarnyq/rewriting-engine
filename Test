@@ -57,6 +57,81 @@ clean() {
 
 ####################################################################
 
+#   • We automatically install stack for users that don't have it on the
+#     principle that you very rarely want a different installation (e.g., a
+#     distro-packaged version), and even there it would get quite hairy
+#     because of us wanting particular Haskell versions.
+#   • This may need sudo access to install required system packages;
+#     there's no way around this.
+#   • This forces the install of the `stack` binary to ~/.local/bin/
+#     because we don't want to be inadvertantly affecting the version of
+#     stack that others on the system might be using. (If someone doesn't
+#     have that in their path; the installer will warn about this.)
+install_stack() {
+    stack --version >/dev/null 2>&1 || {
+        echo '━━━━━ Installing Haskell Stack'
+        curl -sSL https://get.haskellstack.org/ \
+            | bash -s -- --quiet --dest $HOME/.local/bin/ \
+            || fail
+    }
+}
+
+#   Liquid Haskell needs an SMT solver; we use Z3 as suggested, in part
+#   because it's widely available in many Linux distros. But there are
+#   issues with different versions being not quite right; we may want
+#   just to build this ourselves.
+install_z3() {
+    z3 --version >/dev/null 2>&1 || {
+    echo '━━━━━ Installing Z3'
+    sudo apt install z3 \
+        || die 3 'Cannot `apt install z3`; try your own package manager?'
+    }
+}
+
+#   Some development tools available from Stackage are a binary we run,
+#   rather than a library we use, and we appear to be unable to add those
+#   sorts of things to our {package,stack}.yaml. This adds these to the
+#   current project to make them available via `stack exec`. (They are
+#   actually available globally for any Stack-using project using the same
+#   resolver and, where compiler-specific, compiler version.)
+install_ghc_core() {
+    pcre-config --version >/dev/null 2>&1 || {
+        echo '───── Installing libpcre3-dev'
+        #   XXX Seems this wants to produce two dozen or more lines of output
+        #   no matter what we do to try to make it quiet.
+        sudo apt -q -q -qq install -y -q -q -qq libpcre3-dev \
+            || die 3 'Cannot `apt install libpcre3-dev`; try your own package manager?'
+    }
+    stack exec -- ghc-core -h >/dev/null 2>&1 || stack build ghc-core
+}
+
+####################################################################
+
+generate_ghc_core() { (
+    command cd "$PROJDIR"
+    commit=$(git describe --always --dirty)
+    mkdir -p .build/ghc-core/obj/
+    for src in app/*.hs src/*.hs; do
+        #   ghc will generate an executable if the name of the module
+        #   is `Main` and places it in the source dir no matter the
+        #   -outputdir setting, so we have to disable that manually.
+        #   But we _cannot_ use -o on non-Main files here for some
+        #   reason.
+        oarg=; [[ $src = app/* ]] && oarg='-o /dev/null'
+
+        #   -O2 is the default; we use -O1 because that's the much more
+        #   typical optimisation level for production code and compiles
+        #   faster for very little worse execution time and space.
+        stack exec -- ghc-core --no-syntax --no-cast --no-asm \
+            -- -O1 $oarg -outputdir .build/ghc-core/obj/ \
+            "$src" > ".build/ghc-core/$(basename "$src" .hs)-$commit.core" \
+            || fail "ghc-core: cannot compile $src"
+    done
+) }
+
+####################################################################
+#   Argument Parsing
+
 export PROJDIR=$(cd "$(dirname "$0")" && pwd -P)
 export BUILDDIR="$PROJDIR/.build"
 
@@ -78,6 +153,9 @@ while [[ ${#@} -gt 0 ]]; do case "$1" in
     *)              break;;
 esac; done
 
+####################################################################
+# Main
+
 [[ -n $lhver ]] && (
     command cd "$PROJDIR"
         for file in stack.yaml; do
@@ -92,50 +170,10 @@ esac; done
         done
 )
 
-####################################################################
-
-#   • We automatically install stack for users that don't have it on the
-#     principle that you very rarely want a different installation (e.g., a
-#     distro-packaged version), and even there it would get quite hairy
-#     because of us wanting particular Haskell versions.
-#   • This may need sudo access to install required system packages;
-#     there's no way around this.
-#   • This forces the install of the `stack` binary to ~/.local/bin/
-#     because we don't want to be inadvertantly affecting the version of
-#     stack that others on the system might be using. (If someone doesn't
-#     have that in their path; the installer will warn about this.)
-stack --version >/dev/null 2>&1 || {
-    echo '━━━━━ Installing Haskell Stack'
-    curl -sSL https://get.haskellstack.org/ \
-        | bash -s -- --quiet --dest $HOME/.local/bin/ \
-        || fail
-}
-
-#   Liquid Haskell needs an SMT solver; we use Z3 as suggested, in part
-#   because it's widely available in many Linux distros. But there are
-#   issues with different versions being not quite right; we may want
-#   just to build this ourselves.
-z3 --version >/dev/null 2>&1 || {
-    echo '━━━━━ Installing Z3'
-    sudo apt install z3 \
-        || die 3 'Cannot `apt install z3`; try your own package manager?'
-}
-
+install_stack
+install_z3
 echo '━━━━━ Development Tools'
-#   Some development tools available from Stackage are a binary we run,
-#   rather than a library we use, and we appear to be unable to add those
-#   sorts of things to our {package,stack}.yaml. This adds these to the
-#   current project to make them available via `stack exec`. (They are
-#   actually available globally for any Stack-using project using the same
-#   resolver and, where compiler-specific, compiler version.)
-pcre-config --version >/dev/null 2>&1 || {
-    echo '───── Installing libpcre3-dev'
-    #   XXX Seems this wants to produce two dozen or more lines of output
-    #   no matter what we do to try to make it quiet.
-    sudo apt -q -q -qq install -y -q -q -qq libpcre3-dev \
-        || die 3 'Cannot `apt install libpcre3-dev`; try your own package manager?'
-}
-stack exec -- ghc-core -h >/dev/null 2>&1 || stack build ghc-core
+install_ghc_core
 
 echo '━━━━━ Build'
 cd "$PROJDIR"
@@ -155,27 +193,7 @@ stack build --cabal-verbosity=$verbosity || fail
 
 #   Automatically generate core output for later examination
 #   and comparison between commits.
-$gen_ghc_core && (
-    command cd "$PROJDIR"
-    commit=$(git describe --always --dirty)
-    mkdir -p .build/ghc-core/obj/
-    for src in app/*.hs src/*.hs; do
-        #   ghc will generate an executable if the name of the module
-        #   is `Main` and places it in the source dir no matter the
-        #   -outputdir setting, so we have to disable that manually.
-        #   But we _cannot_ use -o on non-Main files here for some
-        #   reason.
-        oarg=; [[ $src = app/* ]] && oarg='-o /dev/null'
-
-        #   -O2 is the default; we use -O1 because that's the much more
-        #   typical optimisation level for production code and compiles
-        #   faster for very little worse execution time and space.
-        stack exec -- ghc-core --no-syntax --no-cast --no-asm \
-            -- -O1 $oarg -outputdir .build/ghc-core/obj/ \
-            "$src" > ".build/ghc-core/$(basename "$src" .hs)-$commit.core" \
-            || fail "ghc-core: cannot compile $src"
-    done
-)
+$gen_ghc_core && generate_ghc_core
 
 stack test || fail "Tests failed."
 
