@@ -23,6 +23,7 @@ module CleanImp
     , sum_imp, divide_imp, div0_imp     -- sample programs
     ) where
 
+import Tarnyq (Rewrite, Semantics, eval)
 import Data.Map (Map, findWithDefault, fromList, insert, member)
 
 {----------------------------------------------------------------------
@@ -90,10 +91,6 @@ infixl 3  :&&                   -- Should be RA! But broken this way in KTutImp.
 
 ----------------------------------------------------------------------
 -- Semantics
-
--- Generic parts
-type Rewrite a = a -> Maybe a
-type Semantics a = [Rewrite a]
 
 -- Evaluate a program using Imp semantics (genercise this to all Semantics).
 eval_imp :: Pgm -> State
@@ -374,12 +371,3 @@ div0_imp = Pgm ids stmt  where
     ids   = ["r"]
     stmt  = Block [ "r" := (Int 42 :/ Int 0) ]
 
-----------------------------------------------------------------------
--- Library Functions (Not part of CleanImp)
-
-eval :: Semantics a -> a -> a
-eval rewrites state = eval' rewrites where
-    eval' []     = state
-    eval' (r:rs) = case (r state) of
-                        Nothing     -> eval' rs
-                        Just state' -> eval rewrites state'

@@ -37,8 +37,10 @@ Systems:
     cjs   10    26      0.0     0.0     §2 AExp, Int !Integer
     ───────────────────────────────────────────────────────────────
     cjs   10    11.6    0.0     0.0     §3 Unroll
-    man   10    10.1    0.0     0.0     §3 Unroll
+    man   10    10.3    0.0     0.0     §3 Unroll
     ───────────────────────────────────────────────────────────────
+    man   10    10.5    0.0     0.0     §4 foldl
+    man   10    10.5    0.0     0.0     §5 separate module
 
 §1: This seems linear in time, memory usage and GC for n=1…10, so So
 we probably don't have major issues with our use of Haskell except that
@@ -59,3 +61,11 @@ call to a call to a call … effectively unrolling it, which then (we guess)
 allows GHC to remove duplicated tests in the sequence, which it could not
 do otherwise. (We presume that GHC doesn't unroll the loop itself because
 the list of rules, at a couple of dozen, is not tiny.)
+
+§4 Fold: Use `foldr orElse (\_ -> Nothing) […]` instead of manually
+placing ``… `orElse` …`` throughout the list of rules. (Also, at some
+point, examine why `foldr1` is three times slower.)
+
+§5 Extracted `orElse` and `eval` to a separate Tarnyq module. Peformance
+became 2-3× slower until we marked the functions INLINE (using INLINABLE
+instead did not help); see the comments in the module for more info.
