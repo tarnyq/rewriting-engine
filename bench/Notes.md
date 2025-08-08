@@ -15,25 +15,30 @@ Haskell `bin/benchmark`
 -----------------------
 
 Parameters tracked:
+- `sys`: System on which it's run (cjs/man/nis)
 - `n(M)`: loop count (millions)
 - `MUT(s)`: mutator time, seconds spent running the program code proper
 - `GC(s)`: seconds spent doing GC
 - `GC(GB)`: total gigabytes copied during GC
 
-Timed on a Ryzen 7 7735HS (cjs/njr's mini-desktop) unless otherwise indicated.
+Systems:
+- cjs: Ryzen 7 7735HS (cjs/njr's mini-desktop)
+- man: Intel i7-11800H
 
 ### Initial tests on "naïve" code
 
-    n(M)    MUT(s)  GC(s)   GC(GB)
+    sys   n(M)  MUT(s)  GC(s)   GC(GB)
     ───────────────────────────────────────────────────────────────
-    10      25      6       7.2     §1
-     5      12.5    3       3.6
-     2       4.7    1.3     1.6
-     1       2.5    0.7     0.8
+    cjs   10    25      6       7.2     §1
+    cjs    5    12.5    3       3.6
+    cjs    2     4.7    1.3     1.6
+    cjs    1     2.5    0.7     0.8
     ───────────────────────────────────────────────────────────────
-    10      26      0.0     0.0     §2 AExp, Int !Integer
+    cjs   10    26      0.0     0.0     §2 AExp, Int !Integer
     ───────────────────────────────────────────────────────────────
-    10      11.6    0.0     0.0     §3 Unroll
+    cjs   10    11.6    0.0     0.0     §3 Unroll
+    man   10    10.1    0.0     0.0     §3 Unroll
+    ───────────────────────────────────────────────────────────────
 
 §1: This seems linear in time, memory usage and GC for n=1…10, so So
 we probably don't have major issues with our use of Haskell except that
