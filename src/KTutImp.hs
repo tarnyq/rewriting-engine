@@ -20,7 +20,7 @@ module KTutImp
     , sum_imp, divide_imp, div0_imp     -- sample programs
     ) where
 
-import Tarnyq (Rewrite, Semantics, eval)
+import Tarnyq (Rewrite, evalOnePath)
 import Data.Map (Map, findWithDefault, fromList, insert, member)
 
 {----------------------------------------------------------------------
@@ -105,9 +105,10 @@ deriving instance Eq State
 ----------------------------------------------------------------------
 -- Semantics
 
--- Evaluate a program using Imp semantics (genercise this to all Semantics).
+-- If this is expanded in other files, it may lose the inlining
+-- unless 'imp' is marked INLINE.
 eval_imp :: Pgm -> State
-eval_imp pgm = eval imp $ impInitState pgm
+eval_imp pgm = evalOnePath imp $ impInitState pgm
 
 ----------------------------------------
 -- User provided Language definition
@@ -126,7 +127,7 @@ data KItem = KI_Stmts Stmts
            | KI_BExp BExp
            deriving Show
 
-imp :: Semantics State
+imp :: [Rewrite State]
 imp =   [ liftK     assignHeat
         , liftK     assignCool
         ,           assign

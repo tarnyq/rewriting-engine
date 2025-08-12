@@ -1,0 +1,29 @@
+{-  Toy language for testing non-determinism.
+-}
+
+module NonDet (State(..), eval_nondet, evalRev_nondet, evalAP_nondet) where
+
+import Tarnyq (Rewrite, evalOnePath, evalAllPaths)
+
+data State = A | B | C
+deriving instance Show State
+deriving instance Eq   State
+
+nondet :: [Rewrite State]
+nondet = [aToB, aToC] where
+    aToB :: Rewrite State
+    aToB A = Just B
+    aToB _ = Nothing
+
+    aToC :: Rewrite State
+    aToC A = Just C
+    aToC _ = Nothing
+
+eval_nondet :: State -> State
+eval_nondet = evalOnePath nondet
+
+evalRev_nondet :: State -> State
+evalRev_nondet = evalOnePath $ reverse nondet
+
+evalAP_nondet :: State -> [State]
+evalAP_nondet = evalAllPaths nondet
