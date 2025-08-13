@@ -58,7 +58,7 @@ dependencies:
 
 library:
   source-dirs:          [src, src/experiment]
-  dependencies:         [tasty, tasty-hunit]
+  dependencies:         [sbv, tasty, tasty-hunit]
 
 executables:
   hello:

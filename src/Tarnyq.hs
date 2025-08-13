@@ -1,4 +1,4 @@
-module Tarnyq (Rewrite, evalOnePath, evalAllPaths) where
+module Tarnyq (Rewrite, evalOnePath, evalAllPaths, evalWithDepth) where
 
 type Rewrite a = a -> Maybe a
 
@@ -38,6 +38,24 @@ evalOnePath rewrites state = eval' state (next state)  where
 
     --  Mystery! foldr1 is 1/3 the speed of foldr above.
     --next = foldr1 orElse rewrites
+
+
+evalWithDepth :: forall a. [Rewrite a] -> Integer -> a -> a
+evalWithDepth rewrites depth state = eval' state (next state) depth where
+    -- Given the current state and the next state/no-state:
+    eval' :: a -> Maybe a -> Integer -> a
+    eval' s _         0 = s                         -- Depth reached
+    eval' s Nothing   _ = s                         -- terminal state: done
+    eval' _ (Just s') d = eval' s' (next s') (d-1)  -- non-terminal, continue stepping
+
+    -- The next state is from the first rule in [Rewrite a] that matches,
+    -- or Nothing if no rules match.
+    next :: Rewrite a
+    next = foldr orElse (\_ -> Nothing) rewrites
+
+    --  Mystery! foldr1 is 1/3 the speed of foldr above.
+    --next = foldr1 orElse rewrites
+
 
 ------------------------------------------------------------------------
 --  All path evaluation
