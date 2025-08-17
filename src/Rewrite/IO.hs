@@ -71,6 +71,10 @@ evalAllPathsIOPure rewrites state input
 -- through to the IO monad. Note that this does not provide all-path evaluation,
 -- since the IO monad does not allow backtracking.
 --
+-- Eventually, this instance could be extended soundly allow
+-- more advanced features such as mutable datastructures. e.g. an optimized
+-- stack implementation for EVM.
+--
 -- TODO     Much of the code below is duplicated from RewriteBasic.
 -- Could this be avoided if we used the MaybeT monad transformer?
 -- One aspect to keep in mind is that `IO (Maybe s)` prohibits implementing
