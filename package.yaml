@@ -7,7 +7,7 @@
 spec-version:       0.36.0
 
 name:               Tarnyq
-version:            0.1.0.0
+version:            0.1.0.0                 # https://pvp.haskell.org/
 github:             Tarnyq/prototype
 license:            AllRightsReserved
 author:
