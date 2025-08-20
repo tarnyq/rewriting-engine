@@ -102,6 +102,8 @@ install_ghc_core() {
         sudo apt -q -q -qq install -y -q -q -qq libpcre3-dev \
             || die 3 'Cannot `apt install libpcre3-dev`; try your own package manager?'
     }
+    #   Ensure deps are installed at this point or Stack will install GHC
+    #   etc. here, with no output, producing a long, mysterious wait.
     stack exec -- ghc-core -h >/dev/null 2>&1 || stack build ghc-core
 }
 
@@ -173,6 +175,10 @@ esac; done
 install_stack
 install_z3
 echo '━━━━━ Development Tools'
+#   Ensure toolchain is installed before checking for ghc core, because
+#   otherwise the ghc core check will silently install GHC etc., giving
+#   a long, mysterious wait.
+stack build --dependencies-only --test --bench
 install_ghc_core
 
 echo '━━━━━ Build'
