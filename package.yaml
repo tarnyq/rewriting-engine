@@ -6,9 +6,9 @@
 
 spec-version:       0.36.0
 
-name:               kmonad
+name:               Tarnyq
 version:            0.1.0.0
-github:             nishantjr/kmonad
+github:             Tarnyq/prototype
 license:            AllRightsReserved
 author:
   - "Nishant Rodrigues <nishantjr@gmail.com>"
@@ -69,19 +69,19 @@ executables:
     source-dirs:        app
     main:               Benchmark.hs
     other-modules:      []
-    dependencies:       [ kmonad ]
+    dependencies:       [ Tarnyq ]
   optimization:
     source-dirs:        app
     main:               Optimization.hs
     other-modules:      []
-    dependencies:       [ kmonad ]
+    dependencies:       [ Tarnyq ]
 
 tests:
-  kmonad-test:
+  tarnyq-test:
     source-dirs:         unit-test
     main:                Main.hs
     ghc-options:
       - -threaded
       - -rtsopts
       - -with-rtsopts=-N
-    dependencies:       [ tasty, tasty-hunit, kmonad ]
+    dependencies:       [ tasty, tasty-hunit, Tarnyq ]
