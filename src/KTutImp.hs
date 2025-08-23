@@ -19,8 +19,11 @@ module KTutImp
     , sum_imp, divide_imp, div0_imp     -- sample programs
     ) where
 
-import Tarnyq (Rewrite, evalOnePath)
+import Prelude hiding (negate, div)
+import qualified Prelude (div)
 import Data.Map (Map, findWithDefault, fromList, insert, member)
+
+import Tarnyq
 
 {----------------------------------------------------------------------
     Abstract Syntax
@@ -86,6 +89,20 @@ mkStmts stmtList = statements (reverse stmtList)  where
     statements [s]    = s
     statements (s:ss) = StPair (statements ss) s
 
+
+----------------------------------------------------------------------
+-- State
+
+data State = State { k :: K, store :: Store }  deriving Show
+
+type K = [KItem]
+data KItem = KI_Stmts Stmts
+           | KI_AExp AExp
+           | KI_BExp BExp
+           deriving Show
+
+type Store = Map Id Integer
+
 --  Make all this showable just for convenience and debugging.
 deriving instance Show AExp
 deriving instance Show BExp
@@ -100,31 +117,81 @@ deriving instance Eq Stmts
 deriving instance Eq KItem
 deriving instance Eq State
 
+----------------------------------------------------------------------
+-- Initialization
+
+impInitState :: Pgm -> State
+impInitState (Pgm ids pgm) = State [KI_Stmts pgm] (impInitStore ids)
+
+impInitStore :: [Id] -> Store
+impInitStore ids = fromList $ zip ids (repeat 0)
+
 
 ----------------------------------------------------------------------
--- Semantics
+-- These can be auto-generated for each language state, using either
+-- a custom `derive` attribute and/or template Haskell.
 
+liftK :: RewriteM K a -> RewriteM State a
+liftK (RewriteM f) = RewriteM $ \state -> case f (k state) of
+                            Just (a, k') -> Just $ (a, state { k = k' })
+                            Nothing      -> Nothing
+
+liftStmts :: RewriteM Stmts a -> RewriteM State a
+liftStmts (RewriteM f) =
+    RewriteM $ \st -> case st of
+                 (State ((KI_Stmts s):rest) _)
+                   -> case (f s) of
+                        Just (a, s') -> Just (a, st { k = ((KI_Stmts s'):rest)})
+                        Nothing -> Nothing
+                 _ -> Nothing
+
+liftAExp :: RewriteM AExp a -> RewriteM State a
+liftAExp (RewriteM f) =
+    RewriteM $ \st -> case st of
+                 (State ((KI_AExp s):rest) _) ->
+                   case (f s) of
+                     Just (a, s') -> Just (a, st { k = ((KI_AExp s'):rest) })
+                     Nothing -> Nothing
+                 _ -> Nothing
+
+liftBExp :: RewriteM BExp a -> RewriteM State a
+liftBExp (RewriteM f) =
+    RewriteM $ \st -> case st of
+                 (State ((KI_BExp s):rest) _) ->
+                   case (f s) of
+                     Just (a, s') -> Just (a, st { k = ((KI_BExp s'):rest) })
+                     Nothing -> Nothing
+                 _ -> Nothing
+
+-- Pulls out the store from the State, keeping the state unchanged.
+getStore :: RewriteM State Store
+getStore = RewriteM $ \state@(State _k store) -> Just $ (store, state)
+
+setStore :: Store -> RewriteM State ()
+setStore store' = RewriteM $ \state -> Just $ ((), state { store = store' })
+
+getK :: RewriteM State K
+getK = liftK get
+
+setK :: K -> RewriteM State ()
+setK = liftK . set
+
+matchStmt :: RewriteM State Stmts
+matchStmt = RewriteM $ \state ->
+    case state of
+        (State ((KI_Stmts stmt):_) _) -> Just (stmt, state)
+        _                             -> Nothing
+
+---------------------------------------------------------------------
+-- Semantics
 -- If this is expanded in other files, it may lose the inlining
 -- unless 'imp' is marked INLINE.
 eval_imp :: Pgm -> State
 eval_imp pgm = evalOnePath imp $ impInitState pgm
 
-----------------------------------------
--- User provided Language definition
 
-data State = State { k :: K, store :: Store }  deriving Show
-impInitState :: Pgm -> State
-impInitState (Pgm ids pgm) = State [KI_Stmts pgm] (impInitStore ids)
-
-type Store = Map Id Integer
-impInitStore :: [Id] -> Store
-impInitStore ids = fromList $ zip ids (repeat 0)
-
-type K = [KItem]
-data KItem = KI_Stmts Stmts
-           | KI_AExp AExp
-           | KI_BExp BExp
-           deriving Show
+----------------------------------------------------------------------
+-- Rules
 
 imp :: [Rewrite State]
 imp =   [ liftK     assignHeat
@@ -159,200 +226,234 @@ imp =   [ liftK     assignHeat
         , liftStmts block
         , liftK     emptyBlock
         ]
-    where
-        seqStmt :: Rewrite K
-        seqStmt ((KI_Stmts (StPair s1 s2)):rest)
-              = Just $ (KI_Stmts s1):(KI_Stmts s2):rest
-        seqStmt _ = Nothing
 
-        assign :: Rewrite State
-        assign (State ((KI_Stmts (id := Int i)):rest) store)
-             = Just $ State rest (insert id i store)
-        assign _ = Nothing
+seqStmt :: Rewrite K
+seqStmt = do k <- get
+             case k of
+                ((KI_Stmts (StPair s1 s2)):rest)
+                    -> set $ (KI_Stmts s1):(KI_Stmts $ s2):rest
+                _   -> matchFail
 
-        assignHeat :: Rewrite K
-        assignHeat ((KI_Stmts (_ := Int _)):_) = Nothing
-        assignHeat ((KI_Stmts (id := aexp)):rest)
-               = Just $ (KI_AExp aexp):(KI_Stmts (id := AHole)):rest
-        assignHeat _ = Nothing
+assign :: Rewrite State
+assign = do k <- getK
+            store <- getStore
+            case k of
+                ((KI_Stmts (id := Int i)):rest)
+                  -> do setK rest
+                        setStore (insert id i store)
+                _ -> matchFail
 
-        assignCool :: Rewrite K
-        assignCool ((KI_AExp (Int i)):(KI_Stmts (id := AHole)):rest)
-               = Just $ (KI_Stmts (id := (Int i))):rest
-        assignCool _ = Nothing
+assignHeat :: Rewrite K
+assignHeat =
+    do  k <- get
+        case k of
+            ((KI_Stmts (_ := Int _)):_) -> matchFail
+            ((KI_Stmts (id := aexp)):rest)
+              -> set $ (KI_AExp aexp):(KI_Stmts (id := AHole)):rest
+            _ -> matchFail
 
+assignCool :: Rewrite K
+assignCool =
+    do  k <- get
+        case k of
+            ((KI_AExp (Int i)):(KI_Stmts (id := AHole)):rest)
+              -> set $ (KI_Stmts (id := (Int i))):rest
+            _ -> matchFail
 
-        while :: Rewrite Stmts
-        while (While cond body)
-            = Just $ (If cond
-                         (StmtsBlock $ StPair (Block body)
-                                              (While cond body))
-                         EmptyBlock)
-        while _ = Nothing
+while :: Rewrite Stmts
+while = do stmts <- get
+           case stmts of
+                (While cond body)
+                  -> set $ (If cond
+                           (StmtsBlock $ StPair (Block body)
+                                                (While cond body))
+                           EmptyBlock)
+                _ -> matchFail
 
-        ifT :: Rewrite Stmts
-        ifT (If (Bool True) stmtsTrue _) = Just $ (Block stmtsTrue)
-        ifT _ = Nothing
+ifT :: Rewrite Stmts
+ifT = do stmts <- get
+         case stmts of
+              (If (Bool True) stmtsTrue _) -> set (Block stmtsTrue)
+              _ -> matchFail
 
-        ifF :: Rewrite Stmts
-        ifF (If (Bool False) _ stmtsFalse) = Just $ (Block stmtsFalse)
-        ifF _ = Nothing
+ifF :: Rewrite Stmts
+ifF = do stmts <- get
+         case stmts of
+            (If (Bool False) _ stmtsFalse) -> set (Block stmtsFalse)
+            _ -> matchFail
 
-        ifHeat :: Rewrite K
-        ifHeat ((KI_Stmts (If (Bool _) _ _)):_) = Nothing
-        ifHeat ((KI_Stmts (If cond stmtsTrue stmtsFalse)):rest)
-             = Just $ (KI_BExp cond):stmts:rest
-             where stmts = (KI_Stmts (If BHole stmtsTrue stmtsFalse))
-        ifHeat _ = Nothing
+ifHeat :: Rewrite K
+ifHeat = do k <- get
+            case k of
+              ((KI_Stmts (If (Bool _) _ _)):_) -> matchFail
+              ((KI_Stmts (If cond stmtsTrue stmtsFalse)):rest)
+                -> set $ (KI_BExp cond):
+                            (KI_Stmts (If BHole stmtsTrue stmtsFalse)):rest
+              _ -> matchFail
 
-        ifCool :: Rewrite K
-        ifCool ((KI_BExp (Bool b)):(KI_Stmts (If BHole stmtsTrue stmtsFalse)):rest)
-               = Just $ ((KI_Stmts (If (Bool b) stmtsTrue stmtsFalse)):rest)
-        ifCool _ = Nothing
+ifCool :: Rewrite K
+ifCool = do k <- get
+            case k of
+              ((KI_BExp (Bool b)):
+                (KI_Stmts (If BHole stmtsTrue stmtsFalse)):rest)
+                -> set $ (KI_Stmts (If (Bool b) stmtsTrue stmtsFalse)):rest
+              _ -> matchFail
 
-        notHeat :: Rewrite K
-        notHeat ((KI_BExp (Not (Bool _))):_) = Nothing
-        notHeat ((KI_BExp (Not bexp)):rest)
-               = Just $ (KI_BExp bexp):(KI_BExp (Not BHole)):rest
-        notHeat _ = Nothing
+notHeat :: Rewrite K
+notHeat = do k <- get
+             case k of ((KI_BExp (Not (Bool _))):_) -> matchFail
+                       ((KI_BExp (Not bexp)):rest)
+                         -> set $ (KI_BExp bexp):(KI_BExp (Not BHole)):rest
+                       _ -> matchFail
 
-        notCool :: Rewrite K
-        notCool ((KI_BExp (Bool b)):(KI_BExp (Not BHole)):rest)
-               = Just $ ((KI_BExp (Not (Bool b))):rest)
-        notCool _ = Nothing
+notCool :: Rewrite K
+notCool = do k <- get
+             case k of
+                ((KI_BExp (Bool b)):(KI_BExp (Not BHole)):rest)
+                    -> set $ (KI_BExp (Not (Bool b))):rest
+                _   -> matchFail
 
-        notBExp :: Rewrite BExp
-        notBExp (Not (Bool b)) = Just $ (Bool (not b))
-        notBExp _ = Nothing
+notBExp :: Rewrite BExp
+notBExp = do exp <- get
+             case exp of
+                 (Not (Bool b)) -> set (Bool (not b))
+                 _ -> matchFail
 
-        leHeatL :: Rewrite K
-        leHeatL ((KI_BExp (Int _ :<= _)):_) = Nothing
-        leHeatL ((KI_BExp (lhs :<= rhs)):rest)
-              = Just $ (KI_AExp lhs):(KI_BExp (AHole :<= rhs)):rest
-        leHeatL _ = Nothing
+leHeatL :: Rewrite K
+leHeatL = do k <- get
+             case k of
+                ((KI_BExp (Int _ :<= _)):_) -> matchFail
+                ((KI_BExp (lhs :<= rhs)):rest)
+                   -> set $ (KI_AExp lhs):(KI_BExp (AHole :<= rhs)):rest
+                _ -> matchFail
 
-        leCoolL :: Rewrite K
-        leCoolL ((KI_AExp (Int i)):(KI_BExp (AHole :<= rhs)):rest)
-              = Just $ (KI_BExp (Int i :<= rhs)):rest
-        leCoolL _ = Nothing
+leCoolL :: Rewrite K
+leCoolL = do k <- get
+             case k of
+                ((KI_AExp (Int i)):(KI_BExp (AHole :<= rhs)):rest)
+                  -> set $ (KI_BExp (Int i :<= rhs)):rest
+                _ -> matchFail
 
-        leHeatR :: Rewrite K
-        leHeatR ((KI_BExp (Int _ :<= Int _)):_) = Nothing
-        leHeatR ((KI_BExp (lhs :<= rhs)):rest)
-              = Just $ (KI_AExp rhs):(KI_BExp (lhs :<= AHole)):rest
-        leHeatR _ = Nothing
+leHeatR :: Rewrite K
+leHeatR = do k <- get
+             case k of
+                ((KI_BExp (Int _ :<= Int _)):_) -> matchFail
+                ((KI_BExp (lhs :<= rhs)):rest)
+                      -> set $ (KI_AExp rhs):(KI_BExp (lhs :<= AHole)):rest
+                _ -> matchFail
 
-        leCoolR :: Rewrite K
-        leCoolR ((KI_AExp (Int i)):(KI_BExp (lhs :<= AHole)):rest)
-              = Just $ (KI_BExp (lhs :<= Int i)):rest
-        leCoolR _ = Nothing
+leCoolR :: Rewrite K
+leCoolR = do k <- get
+             case k of
+               ((KI_AExp (Int i)):(KI_BExp (lhs :<= AHole)):rest)
+                 -> set $ (KI_BExp (lhs :<= Int i)):rest
+               _ -> matchFail
 
-        le :: Rewrite BExp
-        le (Int i :<= Int j) = Just $ (Bool (i <= j))
-        le _ = Nothing
+le :: Rewrite BExp
+le = do exp <- get
+        case exp of
+          (Int i :<= Int j) -> set $ (Bool (i <= j))
+          _ -> matchFail
 
-        addHeatL :: Rewrite K
-        addHeatL ((KI_AExp (Int _ :+ _)):_) = Nothing
-        addHeatL ((KI_AExp (lhs :+ rhs)):rest)
-               = Just $ (KI_AExp lhs):(KI_AExp (AHole :+ rhs)):rest
-        addHeatL _ = Nothing
+addHeatL :: Rewrite K
+addHeatL = do k <- get
+              case k of
+                 ((KI_AExp (Int _ :+ _)):_) -> matchFail
+                 ((KI_AExp (lhs :+ rhs)):rest)
+                    -> set $ (KI_AExp lhs):(KI_AExp (AHole :+ rhs)):rest
+                 _ -> matchFail
 
-        addCoolL :: Rewrite K
-        addCoolL ((KI_AExp (Int i)):(KI_AExp (AHole :+ rhs)):rest)
-               = Just $ (KI_AExp (Int i :+ rhs)):rest
-        addCoolL _ = Nothing
+addCoolL :: Rewrite K
+addCoolL = do k <- get
+              case k of
+                 ((KI_AExp (Int i)):(KI_AExp (AHole :+ rhs)):rest)
+                   -> set $ (KI_AExp (Int i :+ rhs)):rest
+                 _ -> matchFail
 
-        addHeatR :: Rewrite K
-        addHeatR ((KI_AExp (Int _ :+ Int _)):_) = Nothing
-        addHeatR ((KI_AExp (Int lhs :+ rhs)):rest)
-               = Just $ (KI_AExp rhs):(KI_AExp (Int lhs :+ AHole)):rest
-        addHeatR _ = Nothing
+addHeatR :: Rewrite K
+addHeatR = do k <- get
+              case k of
+                 ((KI_AExp (Int _ :+ Int _)):_) -> matchFail
+                 ((KI_AExp (lhs :+ rhs)):rest)
+                       -> set $ (KI_AExp rhs):(KI_AExp (lhs :+ AHole)):rest
+                 _ -> matchFail
 
-        addCoolR :: Rewrite K
-        addCoolR ((KI_AExp (Int i)):(KI_AExp (Int lhs :+ AHole)):rest)
-               = Just $ (KI_AExp (Int lhs :+ Int i)):rest
-        addCoolR _ = Nothing
+addCoolR :: Rewrite K
+addCoolR = do k <- get
+              case k of
+                ((KI_AExp (Int i)):(KI_AExp (lhs :+ AHole)):rest)
+                  -> set $ (KI_AExp (lhs :+ Int i)):rest
+                _ -> matchFail
 
-        add :: Rewrite AExp
-        add (Int i :+ Int j) = Just $ (Int (i + j))
-        add _ = Nothing
+add :: Rewrite AExp
+add = do exp <- get
+         case exp of
+           (Int i :+ Int j) -> set $ (Int $ i + j)
+           _ -> matchFail
 
-        negate :: Rewrite AExp
-        negate (Negate i) = Just $ (Int (-1 * i))
-        negate _ = Nothing
+divHeatL :: Rewrite K
+divHeatL = do k <- get
+              case k of
+                 ((KI_AExp (Int _ :/ _)):_) -> matchFail
+                 ((KI_AExp (lhs :/ rhs)):rest)
+                    -> set $ (KI_AExp lhs):(KI_AExp (AHole :/ rhs)):rest
+                 _ -> matchFail
 
-        divHeatL :: Rewrite K
-        divHeatL ((KI_AExp (Int _ :/ _)):_) = Nothing
-        divHeatL ((KI_AExp (lhs :/ rhs)):rest)
-               = Just $ (KI_AExp lhs):(KI_AExp (AHole :/ rhs)):rest
-        divHeatL _ = Nothing
+divCoolL :: Rewrite K
+divCoolL = do k <- get
+              case k of
+                 ((KI_AExp (Int i)):(KI_AExp (AHole :/ rhs)):rest)
+                   -> set $ (KI_AExp (Int i :/ rhs)):rest
+                 _ -> matchFail
 
-        divCoolL :: Rewrite K
-        divCoolL ((KI_AExp (Int i)):(KI_AExp (AHole :/ rhs)):rest)
-               = Just $ (KI_AExp (Int i :/ rhs)):rest
-        divCoolL _ = Nothing
+divHeatR :: Rewrite K
+divHeatR = do k <- get
+              case k of
+                 ((KI_AExp (Int _ :/ Int _)):_) -> matchFail
+                 ((KI_AExp (lhs :/ rhs)):rest)
+                       -> set $ (KI_AExp rhs):(KI_AExp (lhs :/ AHole)):rest
+                 _ -> matchFail
 
-        divHeatR :: Rewrite K
-        divHeatR ((KI_AExp (Int _ :/ Int _)):_) = Nothing
-        divHeatR ((KI_AExp (Int lhs :/ rhs)):rest)
-               = Just $ (KI_AExp rhs):(KI_AExp (Int lhs :/ AHole)):rest
-        divHeatR _ = Nothing
+divCoolR :: Rewrite K
+divCoolR = do k <- get
+              case k of
+                ((KI_AExp (Int i)):(KI_AExp (lhs :/ AHole)):rest)
+                  -> set $ (KI_AExp (lhs :/ Int i)):rest
+                _ -> matchFail
 
-        divCoolR :: Rewrite K
-        divCoolR ((KI_AExp (Int i)):(KI_AExp (Int lhs :/ AHole)):rest)
-               = Just $ (KI_AExp (Int lhs :/ Int i)):rest
-        divCoolR _ = Nothing
+div :: Rewrite AExp
+div = do exp <- get
+         case exp of
+           (Int i :/ Int j) | j /= 0
+             -> set $ (Int $ i `Prelude.div` j)
+           _ -> matchFail
 
-        div :: Rewrite AExp
-        div (Int i :/ Int j) | j /= 0 = Just $ (Int (i `Prelude.div` j))
-        div _ = Nothing
+negate :: Rewrite AExp
+negate = do exp <- get
+            case exp of
+              (Negate i) ->  set $ Int (-1 * i)
+              _ -> matchFail
 
-        lookupVar :: Rewrite State
-        lookupVar (State ((KI_AExp (Var x)):rest) store)
-                  | member x store
-                = Just $ State (exp:rest) store
-                where exp = KI_AExp $ Int $ findWithDefault undefined x store
-        lookupVar _ = Nothing
+lookupVar :: Rewrite State
+lookupVar = do k <- getK
+               store <- getStore
+               case k of
+                 ((KI_AExp (Var x)):rest) | member x store
+                    -> let exp = KI_AExp $ Int $ findWithDefault undefined x store in
+                       set $ State (exp:rest) store
+                 _  -> matchFail
 
-        block :: Rewrite Stmts
-        block (Block (StmtsBlock s)) = Just s
-        block _ = Nothing
+block :: Rewrite Stmts
+block = do stmts <- get
+           case stmts of
+             (Block (StmtsBlock s)) -> set s
+             _ -> matchFail
 
-        emptyBlock :: Rewrite K
-        emptyBlock ((KI_Stmts (Block EmptyBlock)):rest) = Just rest
-        emptyBlock _ = Nothing
-
-
---  XXX KMonad should generate this.
-liftK :: Rewrite K -> Rewrite State
-liftK f state =
-    case f (k state) of
-           Just k' -> Just $ state { k = k' }
-           Nothing -> Nothing
-
-liftStmts :: Rewrite Stmts -> Rewrite State
-liftStmts f state =
-    case state of (State ((KI_Stmts s):rest) _) ->
-                    case f s of
-                        Just s' -> Just $ state { k = ((KI_Stmts s'):rest) }
-                        Nothing -> Nothing
-                  _ -> Nothing
-
-liftBExp :: Rewrite BExp -> Rewrite State
-liftBExp f state =
-    case state of (State ((KI_BExp s):rest) _) ->
-                    case f s of
-                        Just s' -> Just $ state { k = ((KI_BExp s'):rest) }
-                        Nothing -> Nothing
-                  _ -> Nothing
-
-liftAExp :: Rewrite AExp -> Rewrite State
-liftAExp f state =
-    case state of (State ((KI_AExp s):rest) _) ->
-                    case f s of
-                        Just s' -> Just $ state { k = ((KI_AExp s'):rest) }
-                        Nothing -> Nothing
-                  _ -> Nothing
+emptyBlock :: Rewrite K
+emptyBlock = do stmts <- get
+                case stmts of
+                  ((KI_Stmts (Block EmptyBlock)):rest) -> set rest
+                  _ -> matchFail
 
 ----------------------------------------------------------------------
 --  Sample programs to test syntax and semantics.
