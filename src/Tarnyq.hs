@@ -1,6 +1,47 @@
-module Tarnyq (Rewrite, evalOnePath, evalAllPaths) where
+module Tarnyq
+    (RewriteM(..), Rewrite, get, set, matchFail, evalOnePath, evalAllPaths)
+  where
 
-type Rewrite a = a -> Maybe a
+import Control.Monad (ap)
+
+----------------------------------------------------------------------
+--  RewriteM represents a *possible* transition over a state.
+--  It is the minimal generalization of a rewrite rule that enables
+--  a monadic interface through the additional `a` parameter.
+--  allowing returning a value, besides updating the state.
+--
+--  It is also a generalization of Haskell's State Monad in that it
+--  is possible for the action to not "match", returning a Nothing.
+--  This lets us try multiple rewrites in parallel until one succeeds.
+
+newtype RewriteM s a = RewriteM { getFun :: s -> Maybe (a, s) }
+    deriving Functor
+
+instance Applicative (RewriteM s) where
+    pure x = RewriteM (\s -> Just (x, s))
+    (<*>) = ap
+
+instance Monad (RewriteM s) where
+    p >>= q = RewriteM $
+        \s -> case ((getFun p) s) of
+                    Nothing       -> Nothing
+                    Just (a', s') -> ((getFun $ q a') s')
+
+-- Rewrite rules may only update the State
+type Rewrite s = RewriteM s ()
+
+-- Similar to the state and reader monads, we can get and set the state.
+get :: RewriteM s s
+get = RewriteM $ \s -> Just (s, s)
+
+set :: s -> RewriteM s ()
+set s = RewriteM $ \_ -> Just ((), s)
+
+-- Rewrite that does not match on any states. Useful for handling non-matching
+-- cases in do notation, without reaching into the RewriteM constructor.
+matchFail :: RewriteM  s a
+matchFail = RewriteM $ \_ -> Nothing
+
 
 {-  The functions below are (nearly) forced always to be inlined because
     we use INLINE instead of INLINABLE; GHC is not eager enough to inline
@@ -16,28 +57,31 @@ type Rewrite a = a -> Maybe a
 --  One path evaluation
 
 {-# INLINE orElse #-}
-orElse :: Rewrite a -> Rewrite a -> Rewrite a
-orElse r1 r2 = \state -> case (r1 state) of
-                              Nothing  -> r2 state
-                              Just st' -> Just st'
+orElse :: RewriteM s a -> RewriteM s a -> RewriteM s a
+orElse r1 r2 = RewriteM $ \state -> case ((getFun r1) state) of
+                                Nothing  -> (getFun r2) state
+                                Just ret -> Just ret
 
 {-# INLINE evalOnePath #-}
 -- Return the terminal state of one path through the execution tree using
 -- first-match evaluation.
-evalOnePath :: forall a. [Rewrite a] -> a -> a
+evalOnePath :: forall s. [Rewrite s] -> s -> s
 evalOnePath rewrites state = eval' state (next state)  where
     -- Given the current state and the next state/no-state:
-    eval' :: a -> Maybe a -> a
+    eval' :: s -> Maybe s -> s
     eval' s Nothing   = s                   -- terminal state: done
     eval' _ (Just s') = eval' s' (next s')  -- non-terminal, continue stepping
 
-    -- The next state is from the first rule in [Rewrite a] that matches,
+    -- The next state is from the first rule in [Rewrite s] that matches,
     -- or Nothing if no rules match.
-    next :: Rewrite a
-    next = foldr orElse (\_ -> Nothing) rewrites
+    next :: s -> Maybe s
+    next = unwrapRewrite $ foldr orElse matchFail rewrites
+
+    unwrapRewrite :: Rewrite a -> (a -> Maybe a)
+    unwrapRewrite rw = (fmap snd) . (getFun rw)
 
     --  Mystery! foldr1 is 1/3 the speed of foldr above.
-    --next = foldr1 orElse rewrites
+    --next = unwrapRewrite $ foldr1 orElse rewrites
 
 ------------------------------------------------------------------------
 --  All path evaluation
@@ -82,10 +126,10 @@ evalAllPaths rewrites s = eval' [s] (next s) where
     next = foldr parRewrite (\_ -> []) (map rewriteListResult rewrites)
 
     -- Given a rewrite rule, convert the result from a Maybe to a List.
-    rewriteListResult :: (a -> Maybe a) -> (a -> [a])
-    rewriteListResult rw = \s -> case (rw s) of
+    rewriteListResult :: Rewrite a -> (a -> [a])
+    rewriteListResult rw = \s -> case ((getFun rw) s) of
                                   Nothing -> []
-                                  Just s' -> [s']
+                                  Just((), s') -> [s']
 
     -- Combine two rewrites-to-list into a single rewrite-to-list
     -- by applying them in parallel.
