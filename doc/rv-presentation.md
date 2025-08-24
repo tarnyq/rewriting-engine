@@ -1,3 +1,42 @@
+There are many advantages to this approach.
+To keep things simple, we are going to talk about three.
+
+1.  Major simplification of architecture:
+
+    *   Lower maintenance burden:
+        -   no longer dealing with toolchain across four different languages.
+        -   large classes of maintenance go away:
+                Incremental compilation, packaging,
+                dependency management testing frameworks...
+
+    *   Leverage Haskell's ecosystem
+        -   robust set of high-quality libraries for hooks
+        -   clean mathematical formalization of hooks with side-effects.
+            (Not only IO, but also mutable datastructures, FFI...)
+
+        -   LiquidHaskell for verifying simple lemmas
+        -   Possiblilty of translating to Lean/Coq/Rocq; Agda integration
+
+2.  Symbolic vs Concrete execution becomes a dial rather than a switch
+
+    -   We can choose how much we want symbolic and how much concrete. So, we
+        can pay a lower price for symbolic execution.
+
+    -   Symbolic engine is no longer an interpreter for Kore, but can take
+        advantage of the usual optimizations currently only available to the
+        concrete excution engine.
+
+3.  Quasiquoting and Template Haskell
+
+    *   Ability to use concrete syntax in Haskell
+
+    *   Single language for "meta-level" and "object-level" will enable quickly
+        writing strategies for execution.
+
+        e.g. taking advantage of confluence, and multiple CPU core
+        for concurrent semantics.
+
+---
 
 Our goals are to figure out how to scale the semantics-first to real world
 langauges and more complex use cases. In particular, we want to figure out how
