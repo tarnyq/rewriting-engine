@@ -17,6 +17,7 @@ module KTutImp
     ( Pgm (..), State (..), AExp (..), BExp (..), Block (..), KItem (..), Stmts (..)
     , eval_imp                          -- interpreter
     , sum_imp, divide_imp, div0_imp     -- sample programs
+    , eval_sum
     ) where
 
 import Prelude hiding (negate, div)
@@ -419,3 +420,46 @@ div0_imp :: Pgm
 div0_imp = Pgm ids stmts  where
     ids   = ["r"]
     stmts = mkStmts [ "r" := (Int 42 :/ Int 0) ]
+
+---------------------------------------------------------------------
+-- A Light-weight Semantics-based compilation.
+-- By sequencing rules directly manually we get a light-weight
+-- SBC. This gives us a 3x speedup. GHC isn't able to merge the rules
+-- completely, likely because showing that the RHS and LHS of consecutive
+-- is identical is non-trivial.
+--
+-- One advantage of this method is that it is correct "by-construction",
+-- compared with full SBC produced through symbolic execution,
+-- where completely new rules are generated.
+-- This may make it a good bridge for proving correctness of full SBC.
+--
+-- My suspicsion is that if we were able to supply the substitutions
+-- (i.e. break up the rewrite into a "match" and "apply" step, and
+-- partially apply with known matching results),
+-- function inlining would work even better, giving us a larger speed up.
+--
+-- This summarization was produced "manually", however, figuring out the
+-- required sequences -- of rules needed can be done fairly easily via concrete
+-- execution by having rewrite emit logs.
+
+sum_imp_summary :: [Rewrite State]
+sum_imp_summary = [whileTrueBranch, whileFalseBranch, initialize] where
+        whileCondEval =
+            (liftStmts while) >>  (liftK ifHeat) >> (liftK notHeat) >>
+            (liftK leHeatL) >> lookupVar >> (liftK leCoolL) >> (liftBExp le) >>
+            (liftK notCool) >> (liftBExp  notBExp) >> (liftK ifCool)
+        whileTrueBranch = whileCondEval >>
+            (liftStmts ifT) >> (liftStmts block) >> (liftK seqStmt) >>
+            (liftStmts block) >> (liftK seqStmt) >> (liftK assignHeat) >>
+            (liftK addHeatL) >> lookupVar >> (liftK addCoolL) >>
+            (liftK addHeatR) >> lookupVar >> (liftK addCoolR) >>
+            (liftAExp add) >> (liftK assignCool) >> assign >>
+            (liftK assignHeat) >> (liftK addHeatL) >> lookupVar >>
+            (liftK addCoolL) >> (liftK addHeatR) >> (liftAExp negate) >>
+            (liftK addCoolR) >> (liftAExp add) >> (liftK assignCool) >> assign
+        whileFalseBranch = whileCondEval >>
+            (liftStmts ifF) >> (liftK emptyBlock)
+        initialize = (liftK seqStmt) >> (liftK seqStmt) >> assign >> assign
+
+eval_sum :: Integer -> State
+eval_sum n = evalOnePath sum_imp_summary $ impInitState $ sum_imp n
