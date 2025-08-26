@@ -9,4 +9,6 @@ main :: IO ()
 main = print benchmark
 
 benchmark :: State
-benchmark = eval_imp $ sum_imp (10 * 1000 * 1000)
+benchmark = go where
+    go = eval_imp $ sum_imp (10 * 1000 * 1000)
+ -- go = eval_sum $ (10 * 1000 * 1000)   -- lightweight summarized sum
