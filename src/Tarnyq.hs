@@ -1,5 +1,5 @@
 module Tarnyq
-    (RewriteM(..), Rewrite, get, put, matchFail, evalOnePath, evalAllPaths)
+    (RewriteM(..), Rewrite, get, put, guard, matchFail, evalOnePath, evalAllPaths)
   where
 
 import Control.Monad (ap)
@@ -27,8 +27,18 @@ instance Monad (RewriteM s) where
                     Nothing       -> Nothing
                     Just (a', s') -> ((getFun $ q a') s')
 
--- Rewrite rules may only update the State
-type Rewrite s = RewriteM s ()
+-- Action that does not match on any states.
+matchFail :: RewriteM  s a
+matchFail = RewriteM $ \_ -> Nothing
+
+-- MonadFail allows us to have binding patterns that fail in do notation.
+instance MonadFail (RewriteM s) where
+    fail _ = matchFail
+
+-- TODO Implement Alternative and MonadPlus so we can use their guard.
+guard :: Bool -> Rewrite s
+guard True  = pure ()
+guard False = matchFail
 
 -- Similar to the State Monad, we can get and put the state.
 get :: RewriteM s s
@@ -37,10 +47,8 @@ get = RewriteM $ \s -> Just (s, s)
 put :: s -> RewriteM s ()
 put s = RewriteM $ \_ -> Just ((), s)
 
--- Rewrite that does not match on any states. Useful for handling non-matching
--- cases in do notation, without reaching into the RewriteM constructor.
-matchFail :: RewriteM  s a
-matchFail = RewriteM $ \_ -> Nothing
+-- Rewrite rules may only update the State
+type Rewrite s = RewriteM s ()
 
 
 {-  The functions below are (nearly) forced always to be inlined because

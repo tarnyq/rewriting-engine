@@ -11,12 +11,10 @@ deriving instance Eq   State
 
 nondet :: [Rewrite State]
 nondet = [aToB, aToC] where
-    aToB = do state <- get
-              case state of A -> put B
-                            _ -> matchFail
-    aToC = do state <- get
-              case state of A -> put C
-                            _ -> matchFail
+    aToB = do A <- get
+              put B
+    aToC = do A <- get
+              put C
 
 eval_nondet :: State -> State
 eval_nondet = evalOnePath nondet
