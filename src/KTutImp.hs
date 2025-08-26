@@ -182,6 +182,18 @@ matchStmt = RewriteM $ \state ->
         (State ((KI_Stmts stmt):_) _) -> Just (stmt, state)
         _                             -> Nothing
 
+
+---------------------------------------------------------------------
+-- These are useful for defining heating rules
+
+isInt :: AExp -> Bool
+isInt (Int _) = True
+isInt _       = False
+
+isBool :: BExp -> Bool
+isBool (Bool _) = True
+isBool _       = False
+
 ---------------------------------------------------------------------
 -- Semantics
 -- If this is expanded in other files, it may lose the inlining
@@ -239,12 +251,9 @@ assign = do ((KI_Stmts (id := Int i)):rest) <- getK
 
 assignHeat :: Rewrite K
 assignHeat =
-    do  k <- get
-        case k of
-            ((KI_Stmts (_ := Int _)):_) -> matchFail
-            ((KI_Stmts (id := aexp)):rest)
-              -> put $ (KI_AExp aexp):(KI_Stmts (id := AHole)):rest
-            _ -> matchFail
+    do  ((KI_Stmts (id := aexp)):rest) <- get
+        guard $ not (isInt aexp)
+        put $ (KI_AExp aexp):(KI_Stmts (id := AHole)):rest
 
 assignCool :: Rewrite K
 assignCool =
@@ -267,13 +276,10 @@ ifF = do (If (Bool False) _ stmtsFalse) <- get
          put (Block stmtsFalse)
 
 ifHeat :: Rewrite K
-ifHeat = do k <- get
-            case k of
-              ((KI_Stmts (If (Bool _) _ _)):_) -> matchFail
-              ((KI_Stmts (If cond stmtsTrue stmtsFalse)):rest)
-                -> put $ (KI_BExp cond):
-                            (KI_Stmts (If BHole stmtsTrue stmtsFalse)):rest
-              _ -> matchFail
+ifHeat = do ((KI_Stmts (If cond stmtsTrue stmtsFalse)):rest) <- get
+            guard $ not (isBool cond)
+            put $ (KI_BExp cond):
+                    (KI_Stmts (If BHole stmtsTrue stmtsFalse)):rest
 
 ifCool :: Rewrite K
 ifCool = do ((KI_BExp (Bool b)):
@@ -281,11 +287,9 @@ ifCool = do ((KI_BExp (Bool b)):
             put $ (KI_Stmts (If (Bool b) stmtsTrue stmtsFalse)):rest
 
 notHeat :: Rewrite K
-notHeat = do k <- get
-             case k of ((KI_BExp (Not (Bool _))):_) -> matchFail
-                       ((KI_BExp (Not bexp)):rest)
-                         -> put $ (KI_BExp bexp):(KI_BExp (Not BHole)):rest
-                       _ -> matchFail
+notHeat = do ((KI_BExp (Not bexp)):rest) <- get
+             guard $ not (isBool bexp)
+             put $ (KI_BExp bexp):(KI_BExp (Not BHole)):rest
 
 notCool :: Rewrite K
 notCool = do ((KI_BExp (Bool b)):(KI_BExp (Not BHole)):rest) <- get
@@ -296,24 +300,18 @@ notBExp = do (Not (Bool b)) <- get
              put (Bool (not b))
 
 leHeatL :: Rewrite K
-leHeatL = do k <- get
-             case k of
-                ((KI_BExp (Int _ :<= _)):_) -> matchFail
-                ((KI_BExp (lhs :<= rhs)):rest)
-                   -> put $ (KI_AExp lhs):(KI_BExp (AHole :<= rhs)):rest
-                _ -> matchFail
+leHeatL = do ((KI_BExp (lhs :<= rhs)):rest) <- get
+             guard $ not (isInt lhs)
+             put $ (KI_AExp lhs):(KI_BExp (AHole :<= rhs)):rest
 
 leCoolL :: Rewrite K
 leCoolL = do ((KI_AExp (Int i)):(KI_BExp (AHole :<= rhs)):rest) <- get
              put $ (KI_BExp (Int i :<= rhs)):rest
 
 leHeatR :: Rewrite K
-leHeatR = do k <- get
-             case k of
-                ((KI_BExp (Int _ :<= Int _)):_) -> matchFail
-                ((KI_BExp (lhs :<= rhs)):rest)
-                      -> put $ (KI_AExp rhs):(KI_BExp (lhs :<= AHole)):rest
-                _ -> matchFail
+leHeatR = do ((KI_BExp (lhs :<= rhs)):rest) <- get
+             guard $ not ((isInt lhs) && (isInt rhs))
+             put $ (KI_AExp rhs):(KI_BExp (lhs :<= AHole)):rest
 
 leCoolR :: Rewrite K
 leCoolR = do ((KI_AExp (Int i)):(KI_BExp (lhs :<= AHole)):rest) <- get
@@ -324,24 +322,18 @@ le = do (Int i :<= Int j) <- get
         put $ (Bool (i <= j))
 
 addHeatL :: Rewrite K
-addHeatL = do k <- get
-              case k of
-                 ((KI_AExp (Int _ :+ _)):_) -> matchFail
-                 ((KI_AExp (lhs :+ rhs)):rest)
-                    -> put $ (KI_AExp lhs):(KI_AExp (AHole :+ rhs)):rest
-                 _ -> matchFail
+addHeatL = do ((KI_AExp (lhs :+ rhs)):rest) <- get
+              guard $ not (isInt lhs)
+              put $ (KI_AExp lhs):(KI_AExp (AHole :+ rhs)):rest
 
 addCoolL :: Rewrite K
 addCoolL = do ((KI_AExp (Int i)):(KI_AExp (AHole :+ rhs)):rest) <- get
               put $ (KI_AExp (Int i :+ rhs)):rest
 
 addHeatR :: Rewrite K
-addHeatR = do k <- get
-              case k of
-                 ((KI_AExp (Int _ :+ Int _)):_) -> matchFail
-                 ((KI_AExp (lhs :+ rhs)):rest)
-                       -> put $ (KI_AExp rhs):(KI_AExp (lhs :+ AHole)):rest
-                 _ -> matchFail
+addHeatR = do ((KI_AExp (lhs :+ rhs)):rest) <- get
+              guard $ not ((isInt lhs) && (isInt rhs))
+              put $ (KI_AExp rhs):(KI_AExp (lhs :+ AHole)):rest
 
 addCoolR :: Rewrite K
 addCoolR = do ((KI_AExp (Int i)):(KI_AExp (lhs :+ AHole)):rest) <- get
@@ -352,24 +344,18 @@ add = do (Int i :+ Int j) <- get
          put $ (Int $ i + j)
 
 divHeatL :: Rewrite K
-divHeatL = do k <- get
-              case k of
-                 ((KI_AExp (Int _ :/ _)):_) -> matchFail
-                 ((KI_AExp (lhs :/ rhs)):rest)
-                    -> put $ (KI_AExp lhs):(KI_AExp (AHole :/ rhs)):rest
-                 _ -> matchFail
+divHeatL = do ((KI_AExp (lhs :/ rhs)):rest) <- get
+              guard $ not (isInt lhs)
+              put $ (KI_AExp lhs):(KI_AExp (AHole :/ rhs)):rest
 
 divCoolL :: Rewrite K
 divCoolL = do ((KI_AExp (Int i)):(KI_AExp (AHole :/ rhs)):rest) <- get
               put $ (KI_AExp (Int i :/ rhs)):rest
 
 divHeatR :: Rewrite K
-divHeatR = do k <- get
-              case k of
-                 ((KI_AExp (Int _ :/ Int _)):_) -> matchFail
-                 ((KI_AExp (lhs :/ rhs)):rest)
-                       -> put $ (KI_AExp rhs):(KI_AExp (lhs :/ AHole)):rest
-                 _ -> matchFail
+divHeatR = do ((KI_AExp (lhs :/ rhs)):rest) <- get
+              guard $ not ((isInt lhs) && (isInt rhs))
+              put $ (KI_AExp rhs):(KI_AExp (lhs :/ AHole)):rest
 
 divCoolR :: Rewrite K
 divCoolR = do ((KI_AExp (Int i)):(KI_AExp (lhs :/ AHole)):rest) <- get
@@ -381,10 +367,8 @@ div = do (Int i :/ Int j) <- get
          put (Int $ i `Prelude.div` j)
 
 negate :: Rewrite AExp
-negate = do exp <- get
-            case exp of
-              (Negate i) ->  put $ Int (-1 * i)
-              _ -> matchFail
+negate = do (Negate i) <- get
+            put $ Int (-1 * i)
 
 lookupVar :: Rewrite State
 lookupVar = do ((KI_AExp (Var x)):rest) <- getK
