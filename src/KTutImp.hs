@@ -228,20 +228,14 @@ imp =   [ liftK     assignHeat
         ]
 
 seqStmt :: Rewrite K
-seqStmt = do k <- get
-             case k of
-                ((KI_Stmts (StPair s1 s2)):rest)
-                    -> put $ (KI_Stmts s1):(KI_Stmts $ s2):rest
-                _   -> matchFail
+seqStmt = do ((KI_Stmts (StPair s1 s2)):rest) <- get
+             put $ (KI_Stmts s1):(KI_Stmts $ s2):rest
 
 assign :: Rewrite State
-assign = do k <- getK
+assign = do ((KI_Stmts (id := Int i)):rest) <- getK
             store <- getStore
-            case k of
-                ((KI_Stmts (id := Int i)):rest)
-                  -> do putK rest
-                        putStore (insert id i store)
-                _ -> matchFail
+            putK rest
+            putStore (insert id i store)
 
 assignHeat :: Rewrite K
 assignHeat =
@@ -254,33 +248,23 @@ assignHeat =
 
 assignCool :: Rewrite K
 assignCool =
-    do  k <- get
-        case k of
-            ((KI_AExp (Int i)):(KI_Stmts (id := AHole)):rest)
-              -> put $ (KI_Stmts (id := (Int i))):rest
-            _ -> matchFail
+    do  ((KI_AExp (Int i)):(KI_Stmts (id := AHole)):rest) <- get
+        put $ (KI_Stmts (id := (Int i))):rest
 
 while :: Rewrite Stmts
-while = do stmts <- get
-           case stmts of
-                (While cond body)
-                  -> put $ (If cond
-                           (StmtsBlock $ StPair (Block body)
-                                                (While cond body))
-                           EmptyBlock)
-                _ -> matchFail
+while = do (While cond body) <- get
+           put $ (If cond
+                    (StmtsBlock $ StPair (Block body)
+                                         (While cond body))
+                    EmptyBlock)
 
 ifT :: Rewrite Stmts
-ifT = do stmts <- get
-         case stmts of
-              (If (Bool True) stmtsTrue _) -> put (Block stmtsTrue)
-              _ -> matchFail
+ifT = do (If (Bool True) stmtsTrue _) <- get
+         put (Block stmtsTrue)
 
 ifF :: Rewrite Stmts
-ifF = do stmts <- get
-         case stmts of
-            (If (Bool False) _ stmtsFalse) -> put (Block stmtsFalse)
-            _ -> matchFail
+ifF = do (If (Bool False) _ stmtsFalse) <- get
+         put (Block stmtsFalse)
 
 ifHeat :: Rewrite K
 ifHeat = do k <- get
@@ -292,12 +276,9 @@ ifHeat = do k <- get
               _ -> matchFail
 
 ifCool :: Rewrite K
-ifCool = do k <- get
-            case k of
-              ((KI_BExp (Bool b)):
-                (KI_Stmts (If BHole stmtsTrue stmtsFalse)):rest)
-                -> put $ (KI_Stmts (If (Bool b) stmtsTrue stmtsFalse)):rest
-              _ -> matchFail
+ifCool = do ((KI_BExp (Bool b)):
+                (KI_Stmts (If BHole stmtsTrue stmtsFalse)):rest) <- get
+            put $ (KI_Stmts (If (Bool b) stmtsTrue stmtsFalse)):rest
 
 notHeat :: Rewrite K
 notHeat = do k <- get
@@ -307,17 +288,12 @@ notHeat = do k <- get
                        _ -> matchFail
 
 notCool :: Rewrite K
-notCool = do k <- get
-             case k of
-                ((KI_BExp (Bool b)):(KI_BExp (Not BHole)):rest)
-                    -> put $ (KI_BExp (Not (Bool b))):rest
-                _   -> matchFail
+notCool = do ((KI_BExp (Bool b)):(KI_BExp (Not BHole)):rest) <- get
+             put $ (KI_BExp (Not (Bool b))):rest
 
 notBExp :: Rewrite BExp
-notBExp = do exp <- get
-             case exp of
-                 (Not (Bool b)) -> put (Bool (not b))
-                 _ -> matchFail
+notBExp = do (Not (Bool b)) <- get
+             put (Bool (not b))
 
 leHeatL :: Rewrite K
 leHeatL = do k <- get
@@ -328,11 +304,8 @@ leHeatL = do k <- get
                 _ -> matchFail
 
 leCoolL :: Rewrite K
-leCoolL = do k <- get
-             case k of
-                ((KI_AExp (Int i)):(KI_BExp (AHole :<= rhs)):rest)
-                  -> put $ (KI_BExp (Int i :<= rhs)):rest
-                _ -> matchFail
+leCoolL = do ((KI_AExp (Int i)):(KI_BExp (AHole :<= rhs)):rest) <- get
+             put $ (KI_BExp (Int i :<= rhs)):rest
 
 leHeatR :: Rewrite K
 leHeatR = do k <- get
@@ -343,17 +316,12 @@ leHeatR = do k <- get
                 _ -> matchFail
 
 leCoolR :: Rewrite K
-leCoolR = do k <- get
-             case k of
-               ((KI_AExp (Int i)):(KI_BExp (lhs :<= AHole)):rest)
-                 -> put $ (KI_BExp (lhs :<= Int i)):rest
-               _ -> matchFail
+leCoolR = do ((KI_AExp (Int i)):(KI_BExp (lhs :<= AHole)):rest) <- get
+             put $ (KI_BExp (lhs :<= Int i)):rest
 
 le :: Rewrite BExp
-le = do exp <- get
-        case exp of
-          (Int i :<= Int j) -> put $ (Bool (i <= j))
-          _ -> matchFail
+le = do (Int i :<= Int j) <- get
+        put $ (Bool (i <= j))
 
 addHeatL :: Rewrite K
 addHeatL = do k <- get
@@ -364,11 +332,8 @@ addHeatL = do k <- get
                  _ -> matchFail
 
 addCoolL :: Rewrite K
-addCoolL = do k <- get
-              case k of
-                 ((KI_AExp (Int i)):(KI_AExp (AHole :+ rhs)):rest)
-                   -> put $ (KI_AExp (Int i :+ rhs)):rest
-                 _ -> matchFail
+addCoolL = do ((KI_AExp (Int i)):(KI_AExp (AHole :+ rhs)):rest) <- get
+              put $ (KI_AExp (Int i :+ rhs)):rest
 
 addHeatR :: Rewrite K
 addHeatR = do k <- get
@@ -379,17 +344,12 @@ addHeatR = do k <- get
                  _ -> matchFail
 
 addCoolR :: Rewrite K
-addCoolR = do k <- get
-              case k of
-                ((KI_AExp (Int i)):(KI_AExp (lhs :+ AHole)):rest)
-                  -> put $ (KI_AExp (lhs :+ Int i)):rest
-                _ -> matchFail
+addCoolR = do ((KI_AExp (Int i)):(KI_AExp (lhs :+ AHole)):rest) <- get
+              put $ (KI_AExp (lhs :+ Int i)):rest
 
 add :: Rewrite AExp
-add = do exp <- get
-         case exp of
-           (Int i :+ Int j) -> put $ (Int $ i + j)
-           _ -> matchFail
+add = do (Int i :+ Int j) <- get
+         put $ (Int $ i + j)
 
 divHeatL :: Rewrite K
 divHeatL = do k <- get
@@ -400,11 +360,8 @@ divHeatL = do k <- get
                  _ -> matchFail
 
 divCoolL :: Rewrite K
-divCoolL = do k <- get
-              case k of
-                 ((KI_AExp (Int i)):(KI_AExp (AHole :/ rhs)):rest)
-                   -> put $ (KI_AExp (Int i :/ rhs)):rest
-                 _ -> matchFail
+divCoolL = do ((KI_AExp (Int i)):(KI_AExp (AHole :/ rhs)):rest) <- get
+              put $ (KI_AExp (Int i :/ rhs)):rest
 
 divHeatR :: Rewrite K
 divHeatR = do k <- get
@@ -415,18 +372,13 @@ divHeatR = do k <- get
                  _ -> matchFail
 
 divCoolR :: Rewrite K
-divCoolR = do k <- get
-              case k of
-                ((KI_AExp (Int i)):(KI_AExp (lhs :/ AHole)):rest)
-                  -> put $ (KI_AExp (lhs :/ Int i)):rest
-                _ -> matchFail
+divCoolR = do ((KI_AExp (Int i)):(KI_AExp (lhs :/ AHole)):rest) <- get
+              put $ (KI_AExp (lhs :/ Int i)):rest
 
 div :: Rewrite AExp
-div = do exp <- get
-         case exp of
-           (Int i :/ Int j) | j /= 0
-             -> put $ (Int $ i `Prelude.div` j)
-           _ -> matchFail
+div = do (Int i :/ Int j) <- get
+         guard $ j /= 0
+         put (Int $ i `Prelude.div` j)
 
 negate :: Rewrite AExp
 negate = do exp <- get
@@ -435,25 +387,19 @@ negate = do exp <- get
               _ -> matchFail
 
 lookupVar :: Rewrite State
-lookupVar = do k <- getK
+lookupVar = do ((KI_AExp (Var x)):rest) <- getK
                store <- getStore
-               case k of
-                 ((KI_AExp (Var x)):rest) | member x store
-                    -> let exp = KI_AExp $ Int $ findWithDefault undefined x store in
-                       put $ State (exp:rest) store
-                 _  -> matchFail
+               guard $ member x store
+               let exp = KI_AExp $ Int $ findWithDefault undefined x store in
+                 put $ State (exp:rest) store
 
 block :: Rewrite Stmts
-block = do stmts <- get
-           case stmts of
-             (Block (StmtsBlock s)) -> put s
-             _ -> matchFail
+block = do (Block (StmtsBlock s)) <- get
+           put s
 
 emptyBlock :: Rewrite K
-emptyBlock = do stmts <- get
-                case stmts of
-                  ((KI_Stmts (Block EmptyBlock)):rest) -> put rest
-                  _ -> matchFail
+emptyBlock = do ((KI_Stmts (Block EmptyBlock)):rest) <- get
+                put rest
 
 ----------------------------------------------------------------------
 --  Sample programs to test syntax and semantics.
