@@ -1,5 +1,5 @@
 module Tarnyq
-    (RewriteM(..), Rewrite, get, set, matchFail, evalOnePath, evalAllPaths)
+    (RewriteM(..), Rewrite, get, put, matchFail, evalOnePath, evalAllPaths)
   where
 
 import Control.Monad (ap)
@@ -30,12 +30,12 @@ instance Monad (RewriteM s) where
 -- Rewrite rules may only update the State
 type Rewrite s = RewriteM s ()
 
--- Similar to the state and reader monads, we can get and set the state.
+-- Similar to the State Monad, we can get and put the state.
 get :: RewriteM s s
 get = RewriteM $ \s -> Just (s, s)
 
-set :: s -> RewriteM s ()
-set s = RewriteM $ \_ -> Just ((), s)
+put :: s -> RewriteM s ()
+put s = RewriteM $ \_ -> Just ((), s)
 
 -- Rewrite that does not match on any states. Useful for handling non-matching
 -- cases in do notation, without reaching into the RewriteM constructor.
