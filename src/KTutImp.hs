@@ -130,58 +130,50 @@ impInitStore ids = fromList $ zip ids (repeat 0)
 
 ----------------------------------------------------------------------
 -- These can be auto-generated for each language state, using either
--- a custom `derive` attribute and/or template Haskell.
+-- a custom `derive` attribute and/or Template Haskell.
 
 liftK :: RewriteM K a -> RewriteM State a
-liftK (RewriteM f) = RewriteM $ \state -> case f (k state) of
-                            Just (a, k') -> Just $ (a, state { k = k' })
-                            Nothing      -> Nothing
+liftK = mkLift (\state -> Just (k state, state))
+               (\k state -> (state{k}))
+
+matchStmt :: RewriteM State Stmts
+matchStmt = do (State ((KI_Stmts stmt):_) _) <- get
+               pure stmt
 
 liftStmts :: RewriteM Stmts a -> RewriteM State a
-liftStmts (RewriteM f) =
-    RewriteM $ \st -> case st of
-                 (State ((KI_Stmts s):rest) _)
-                   -> case (f s) of
-                        Just (a, s') -> Just (a, st { k = ((KI_Stmts s'):rest)})
-                        Nothing -> Nothing
-                 _ -> Nothing
+liftStmts = mkLift unplug plug where
+    unplug = \case state@(State ((KI_Stmts s):rest) _) -> Just (s, (state, rest))
+                   _                                   -> Nothing
+    plug stmts (state, rest) = state{k=(KI_Stmts stmts):(rest)}
 
 liftAExp :: RewriteM AExp a -> RewriteM State a
-liftAExp (RewriteM f) =
-    RewriteM $ \st -> case st of
-                 (State ((KI_AExp s):rest) _) ->
-                   case (f s) of
-                     Just (a, s') -> Just (a, st { k = ((KI_AExp s'):rest) })
-                     Nothing -> Nothing
-                 _ -> Nothing
+liftAExp = mkLift unplug plug where
+    unplug = \case state@(State ((KI_AExp s):rest) _) -> Just (s, (state, rest))
+                   _                                   -> Nothing
+    plug stmts (state, rest) = state{k=(KI_AExp stmts):(rest)}
 
 liftBExp :: RewriteM BExp a -> RewriteM State a
-liftBExp (RewriteM f) =
-    RewriteM $ \st -> case st of
-                 (State ((KI_BExp s):rest) _) ->
-                   case (f s) of
-                     Just (a, s') -> Just (a, st { k = ((KI_BExp s'):rest) })
-                     Nothing -> Nothing
-                 _ -> Nothing
+liftBExp = mkLift unplug plug where
+    unplug = \case state@(State ((KI_BExp s):rest) _) -> Just (s, (state, rest))
+                   _                                   -> Nothing
+    plug stmts (state, rest) = state{k=(KI_BExp stmts):(rest)}
+
+liftStore :: RewriteM Store a -> RewriteM State a
+liftStore = mkLift (\state -> Just (store state, state))
+                   (\store state -> (state{store}))
 
 -- Pulls out the store from the State, keeping the state unchanged.
 getStore :: RewriteM State Store
-getStore = RewriteM $ \state@(State _k store) -> Just $ (store, state)
+getStore = liftStore get
 
 putStore :: Store -> RewriteM State ()
-putStore store' = RewriteM $ \state -> Just $ ((), state { store = store' })
+putStore = liftStore . put
 
 getK :: RewriteM State K
 getK = liftK get
 
 putK :: K -> RewriteM State ()
 putK = liftK . put
-
-matchStmt :: RewriteM State Stmts
-matchStmt = RewriteM $ \state ->
-    case state of
-        (State ((KI_Stmts stmt):_) _) -> Just (stmt, state)
-        _                             -> Nothing
 
 
 ---------------------------------------------------------------------

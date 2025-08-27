@@ -1,5 +1,9 @@
 module Tarnyq
-    (RewriteM(..), Rewrite, get, put, guard, matchFail, evalOnePath, evalAllPaths)
+    (   RewriteM(..), Rewrite,
+        get, put, guard, matchFail,
+        mkLift,
+        evalOnePath, evalAllPaths
+    )
   where
 
 import Control.Monad (ap)
@@ -49,6 +53,25 @@ put s = RewriteM $ \_ -> Just ((), s)
 
 -- Rewrite rules may only update the State
 type Rewrite s = RewriteM s ()
+
+-- "Contexts" may be defined using two functions: "unplug", that pulls a
+-- subterm (called the plug (noun)) out of a larger term, and
+-- "plug", that puts it back in.
+-- The "unplug" function is more general than a projection function
+-- (e.g. fst, snd) that similarly pull subterms out of terms, in that it may
+-- fail e.g. due to pattern matching failing.
+
+-- For any context, we may lift rewrites on the subterm's type
+-- to the context's type.
+
+{-# INLINE mkLift #-}
+mkLift :: (s -> Maybe (p, c)) -> (p -> c -> s) -> (RewriteM p a -> RewriteM s a)
+mkLift unplug plug rw
+  = do Just (p, ctx) <- fmap unplug get
+       case (getFun rw) p of
+         Just (a, p') -> do put $ plug p' ctx
+                            pure a
+         Nothing      -> matchFail
 
 
 {-  The functions below are (nearly) forced always to be inlined because
