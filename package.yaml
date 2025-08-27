@@ -39,6 +39,8 @@ default-extensions:         # Enabled in every module.
   - NamedFieldPuns          # Foo{blah} for Foo{blah=blah}.
   - FlexibleContexts        # More complex constraints. E.g.: `Eq [a]`
   - FlexibleInstances
+  - RankNTypes
+  - TypeApplications
 
 #   This is essentialy just documentation of what LANGUAGE pragmas we use.
 other-extensions: []

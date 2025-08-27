@@ -1,5 +1,8 @@
+{-# LANGUAGE FunctionalDependencies #-}
+
 module Tarnyq
-    (   RewriteM(..), Rewrite,
+    (   RewriteM(..),
+        MonadRewrite, Rewrite,
         get, put, guard, matchFail,
         mkLift,
         evalOnePath, evalAllPaths
@@ -7,6 +10,29 @@ module Tarnyq
   where
 
 import Control.Monad (ap)
+
+-- TODO Require MonadPlus so we can use its guard.
+class MonadFail (r s) => MonadRewrite r s where
+  get   :: r s s
+  matchFail :: r s a
+  put   :: s -> r s ()
+
+  -- "Contexts" may be defined using two functions: "unplug", that pulls a
+  -- subterm (called the plug (noun)) out of a larger term, and
+  -- "plug", that puts it back in.
+  -- The "unplug" function is more general than a projection function
+  -- (e.g. fst, snd) that similarly pull subterms out of terms, in that it may
+  -- fail e.g. due to pattern matching failing.
+  -- For any context, we may lift rewrites on the subterm's type
+  -- to the context's type.
+  mkLift :: (s -> Maybe (p, c)) -> (p -> c -> s) -> (r p a -> r s a)
+
+  guard :: Bool -> r s ()
+  guard True  = pure ()
+  guard False = matchFail
+
+  {-# MINIMAL get, put, matchFail, mkLift #-}
+
 
 ----------------------------------------------------------------------
 --  RewriteM represents a *possible* transition over a state.
@@ -27,51 +53,28 @@ instance Applicative (RewriteM s) where
 
 instance Monad (RewriteM s) where
     p >>= q = RewriteM $
-        \s -> case ((getFun p) s) of
-                    Nothing       -> Nothing
-                    Just (a', s') -> ((getFun $ q a') s')
-
--- Action that does not match on any states.
-matchFail :: RewriteM  s a
-matchFail = RewriteM $ \_ -> Nothing
+        \s -> do (a', s') <- ((getFun p) s)
+                 ((getFun $ q a') s')
 
 -- MonadFail allows us to have binding patterns that fail in do notation.
 instance MonadFail (RewriteM s) where
-    fail _ = matchFail
+    fail _ = RewriteM $ \_ -> Nothing
 
--- TODO Implement Alternative and MonadPlus so we can use their guard.
-guard :: Bool -> Rewrite s
-guard True  = pure ()
-guard False = matchFail
+instance MonadRewrite RewriteM s where
+    get   = RewriteM $ \s -> Just (s, s)
+    put s = RewriteM $ \_ -> Just ((), s)
+    matchFail = RewriteM $ \_ -> Nothing
 
--- Similar to the State Monad, we can get and put the state.
-get :: RewriteM s s
-get = RewriteM $ \s -> Just (s, s)
+    {-# INLINE mkLift #-}
+    mkLift unplug plug rw
+      = do Just (p, ctx) <- fmap unplug get
+           case (getFun rw) p of
+             Just (a, p') -> do put $ plug p' ctx
+                                pure a
+             Nothing      -> matchFail
 
-put :: s -> RewriteM s ()
-put s = RewriteM $ \_ -> Just ((), s)
-
--- Rewrite rules may only update the State
+--- Rewrite rules may only update the State
 type Rewrite s = RewriteM s ()
-
--- "Contexts" may be defined using two functions: "unplug", that pulls a
--- subterm (called the plug (noun)) out of a larger term, and
--- "plug", that puts it back in.
--- The "unplug" function is more general than a projection function
--- (e.g. fst, snd) that similarly pull subterms out of terms, in that it may
--- fail e.g. due to pattern matching failing.
-
--- For any context, we may lift rewrites on the subterm's type
--- to the context's type.
-
-{-# INLINE mkLift #-}
-mkLift :: (s -> Maybe (p, c)) -> (p -> c -> s) -> (RewriteM p a -> RewriteM s a)
-mkLift unplug plug rw
-  = do Just (p, ctx) <- fmap unplug get
-       case (getFun rw) p of
-         Just (a, p') -> do put $ plug p' ctx
-                            pure a
-         Nothing      -> matchFail
 
 
 {-  The functions below are (nearly) forced always to be inlined because
@@ -119,7 +122,7 @@ evalOnePath rewrites state = eval' state (next state)  where
 
 -- Return all terminal states (leaves of an execution tree) using
 -- depth-first evaluation.
-evalAllPaths :: forall a. [Rewrite a] -> a -> [a]
+evalAllPaths :: forall s. [Rewrite s] -> s -> [s]
 evalAllPaths rewrites s = eval' [s] (next s) where
 
     -- We process the list of current states (cs) in depth-first order,
@@ -128,7 +131,7 @@ evalAllPaths rewrites s = eval' [s] (next s) where
     -- * The stack of current states (cs).
     -- * The list successor states for just the current state at the
     --   top of the stack (ns).
-    eval' :: [a] -> [a] -> [a]
+    eval' :: [s] -> [s] -> [s]
 
     -- If there are no current states left we are done.
     eval' [] _  = []
@@ -147,22 +150,22 @@ evalAllPaths rewrites s = eval' [s] (next s) where
 
     -- Given a list of states, return the successors of the first.
     -- If the list is empty return nothing.
-    nextHead :: [a] -> [a]
+    nextHead :: [s] -> [s]
     nextHead []     = []
     nextHead (s:_)  = (next s)
 
     --  At each step next gives all new states derived from a single input
     --  state, but also drops any terminal states from the previous step.
-    next :: a -> [a]
+    next :: s -> [s]
     next = foldr parRewrite (\_ -> []) (map rewriteListResult rewrites)
 
     -- Given a rewrite rule, convert the result from a Maybe to a List.
-    rewriteListResult :: Rewrite a -> (a -> [a])
+    rewriteListResult :: Rewrite s -> (s -> [s])
     rewriteListResult rw = \s -> case ((getFun rw) s) of
                                   Nothing -> []
                                   Just((), s') -> [s']
 
-    -- Combine two rewrites-to-list into a single rewrite-to-list
+    -- Combine two rewrites-to-list into s single rewrite-to-list
     -- by applying them in parallel.
-    parRewrite :: (a -> [a]) -> (a -> [a]) -> (a -> [a])
+    parRewrite :: (s -> [s]) -> (s -> [s]) -> (s -> [s])
     parRewrite r1 r2 = \state -> (r1 state) ++ (r2 state)
