@@ -1,0 +1,20 @@
+#   LiquidHaskell 0.9.10.1 configuration from: ???.
+
+packages: [.]
+
+resolver: lts-24.7          # Gives GHC 9.10.2 by default.
+compiler: ghc-9.10.1
+extra-deps:
+  #   Configuration copied from ???
+  - Diff-0.5
+  - hashable-1.4.7.0
+  - smtlib-backends-0.4
+  - smtlib-backends-process-0.3
+  - liquidhaskell-0.9.10.1.2
+  - liquidhaskell-boot-0.9.10.1.2
+  - liquid-prelude-0.9.10.1.2
+  - liquid-fixpoint-0.9.6.3.2
+
+#   This avoids annoying warnings if you happen to have Nix in your path.
+#   (We don't use Nix. Bleh.)
+notify-if-nix-on-path: false
