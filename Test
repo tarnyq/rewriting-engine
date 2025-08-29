@@ -76,6 +76,33 @@ install_stack() {
     }
 }
 
+#   XXX HPack is a serious pain to bootstrap via cabal and Hackage, and
+#   it's just a stand-alone utility anyway, so we simply grab the latest
+#   release binary from GitHub. Unfortunately, that has only a Linux
+#   (presumably x86_64) binary, so this does at some point need to be
+#   properly bootstrapped so it can work on Mac, etc.
+#
+#   HPack does provide a get-hpack.sh script[1], but it's not only
+#   hard-coded to install to ~/.local/bin/, but also has an..."interestig"
+#   way of determining OS version: `os="${1:-${TRAVIS_OS_NAME:-linux}}"`.
+#   So we just do our own download for the moment.
+#
+#   [1]: https://raw.githubusercontent.com/sol/hpack/main/get-hpack.sh
+#
+install_hpack() {
+    [[ -x $TOOLBIN/hpack ]] && return 0
+
+    platform='Linux x86_64'
+    echo "───── Installing HPack for $platform"
+    [[ $platform = $(uname -sm) ]] || die 9 \
+        "install_hpack() supports only $platform, not $(uname -sm)"
+    #   XXX We don't even bother to look up the latest version; we just
+    #   download a fixed one, and update by hand when necessary.
+    url='https://github.com/sol/hpack/releases/download/0.38.2/hpack_linux.gz'
+    curl -sSL "$url" | gunzip > "$TOOLBIN/hpack"
+    chmod +x "$TOOLBIN/hpack"
+}
+
 #   Liquid Haskell needs an SMT solver; we use Z3 as suggested, in part
 #   because it's widely available in many Linux distros. But there are
 #   issues with different versions being not quite right; we may want
@@ -136,6 +163,7 @@ generate_ghc_core() { (
 
 export PROJDIR=$(cd "$(dirname "$0")" && pwd -P)
 export BUILDDIR="$PROJDIR/.build"
+export TOOLBIN="$BUILDDIR/tool/bin"; mkdir -p "$TOOLBIN"; PATH="$TOOLBIN:$PATH"
 
 verbosity=0         # Cabal verbosity level (default 1 but we always override
                     # it) and perhaps other things.
@@ -174,6 +202,8 @@ esac; done
 
 echo '━━━━━ Development Tools'
 install_z3
+install_hpack
+(cd "$PROJDIR" && hpack --silent)
 install_stack
 #   Ensure toolchain is installed before checking for ghc core, because
 #   otherwise the ghc core check will silently install GHC etc., giving
