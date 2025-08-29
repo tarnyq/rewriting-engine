@@ -69,7 +69,7 @@ clean() {
 #     have that in their path; the installer will warn about this.)
 install_stack() {
     stack --version >/dev/null 2>&1 || {
-        echo '━━━━━ Installing Haskell Stack'
+        echo '───── Installing Haskell Stack'
         curl -sSL https://get.haskellstack.org/ \
             | bash -s -- --quiet --dest $HOME/.local/bin/ \
             || fail
@@ -82,7 +82,7 @@ install_stack() {
 #   just to build this ourselves.
 install_z3() {
     z3 --version >/dev/null 2>&1 || {
-    echo '━━━━━ Installing Z3'
+    echo '───── Installing Z3'
     sudo apt install z3 \
         || die 3 'Cannot `apt install z3`; try your own package manager?'
     }
@@ -172,9 +172,9 @@ esac; done
         done
 )
 
-install_stack
-install_z3
 echo '━━━━━ Development Tools'
+install_z3
+install_stack
 #   Ensure toolchain is installed before checking for ghc core, because
 #   otherwise the ghc core check will silently install GHC etc., giving
 #   a long, mysterious wait.
