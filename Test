@@ -270,20 +270,14 @@ else
     $cabal configure --enable-append --disable-backup \
         --with-compiler "$ghc_requested"
 fi
-install_stack
-#   Ensure toolchain is installed before checking for ghc core, because
-#   otherwise the ghc core check will silently install GHC etc., giving
-#   a long, mysterious wait.
-stack build --dependencies-only --test --bench
-install_ghc_core
+
+#   XXX We need to get the install_ghc_core thing working with cabal
+#stack build --dependencies-only --test --bench
+#install_ghc_core
 
 echo '━━━━━ Build'
 cd "$PROJDIR"
-#   We want to regularly build with the latest versions of our dependencies
-#   so we can quickly see any problems they introduce. This can slow things
-#   down a bit, so just do this daily.
-since_timestamp stack.yaml.lock 86400 rm -f stack.yaml.lock
-stack build --cabal-verbosity=$verbosity || fail
+$cabal build --verbose=$verbosity || fail
 
 [[ -n ${ghci_exprs[*]} ]] && {
     ghci_inputs=(':set prompt "▪ "')
@@ -297,6 +291,6 @@ stack build --cabal-verbosity=$verbosity || fail
 #   and comparison between commits.
 $gen_ghc_core && generate_ghc_core
 
-stack test || fail "Tests failed."
+$cabal test || fail "Tests failed."
 
 echo "OK ($(elapsed)s)"
