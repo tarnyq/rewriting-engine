@@ -275,7 +275,7 @@ fi
 #stack build --dependencies-only --test --bench
 #install_ghc_core
 
-echo '━━━━━ Build'
+echo '━━━━━ Build (this may take some time)'
 cd "$PROJDIR"
 $cabal build --verbose=$verbosity || fail
 
