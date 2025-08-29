@@ -3,7 +3,7 @@
 packages: [.]
 
 resolver: lts-24.7          # Gives GHC 9.10.2 by default.
-compiler: ghc-9.10.1
+compiler: ghc-9.10.1        # Seems to work fine with 9.10.2 as well, though.
 extra-deps:
   #   Configuration copied from ???
   - Diff-0.5
