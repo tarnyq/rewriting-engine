@@ -30,6 +30,13 @@ default-extensions:         # Enabled in every module.
   - BangPatterns
   - ScopedTypeVariables     # toplevel `forall a.` scopes into where clauses
   - StandaloneDeriving
+  - LambdaCase              # Use `\case (Just x) -> ...`
+                            # instead of \v -> case v of (Just x) -> ...
+  - DeriveFunctor           # Automatically derive Functor when the type
+                            #   parameter is in a co-variant position.
+  - NamedFieldPuns          # Foo{blah} for Foo{blah=blah}.
+  - FlexibleContexts        # More complex constraints. E.g.: `Eq [a]`
+  - FlexibleInstances
 
 #   This is essentialy just documentation of what LANGUAGE pragmas we use.
 other-extensions: []
