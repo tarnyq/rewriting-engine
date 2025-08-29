@@ -12,7 +12,6 @@
     [2]: https://github.com/runtimeverification/imp-semantics
 -}
 
-{-# LANGUAGE ScopedTypeVariables #-}
 {-# OPTIONS_GHC -Wno-unused-top-binds #-}
 module KTutImp
     ( Pgm (..), State (..), AExp (..), BExp (..), Block (..), KItem (..), Stmts (..)
