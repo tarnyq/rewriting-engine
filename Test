@@ -135,6 +135,28 @@ find_cabal() {
     die 3 'Cannot find a `cabal` executable. Install one with ghcup?'
 }
 
+#   Unlike Cabal, where pretty much any version will work, only specific
+#   versions of GHC can work with Liquid Haskell. Unless the user has
+#   specified an override, we attempt to chose the earliest from our
+#   list of preferred versions.
+find_ghc() {
+    grep -qs '^with-compiler:' "$PROJDIR/cabal.project.local" && return 0
+
+    local prefvers=(9.10.2  9.10.1  9.8.2)  # XXX add 9.12.2
+    local ghcup_bin="$HOME/.ghcup/bin"
+    #   XXX exit if we already have a preferred version in
+    #   cabal.project.local.
+    local ver
+    for ver in "${prefvers[@]}"; do
+        local ghcpath="$ghcup_bin/ghc-$ver"
+        "$ghcpath" --numeric-version >/dev/null 2>&1 || continue
+        $cabal configure --enable-append --disable-backup \
+            --with-compiler "$ghcpath"
+        return 0
+    done
+    die 3 'Cannot find a GHC version. Install one with ghcup or use the -G option.'
+}
+
 #   Liquid Haskell needs an SMT solver; we use Z3 as suggested, in part
 #   because it's widely available in many Linux distros. But there are
 #   issues with different versions being not quite right; we may want
@@ -199,6 +221,7 @@ export TOOLBIN="$BUILDDIR/tool/bin"; mkdir -p "$TOOLBIN"; PATH="$TOOLBIN:$PATH"
 
 verbosity=0         # Cabal verbosity level (default 1 but we always override
                     # it) and perhaps other things.
+ghc_requested=      # Non-empty = user has requested use of a specific GHC.
 lhver=              # Switch to different version of Liquid Haskell.
 ghci_modules=()     # Run ghci after build, :load! the given modules, and
 ghci_exprs=()       #   then evaluate the given expressions.
@@ -206,6 +229,7 @@ gen_ghc_core=false  # Generate .build/ghc-core/ files for all source files.
 while [[ ${#@} -gt 0 ]]; do case "$1" in
     --)             shift; break;;
     -C|-c)          shift; clean;;
+    -G)             shift; ghc_requested="$1"; shift;;
     -g)             shift; gen_ghc_core=true;;
     -v|--verbose)   shift; verbosity=$(($verbosity+1));;    # multiple times ok
     -l|--lhver)     shift; lhver="$1"; shift;;
@@ -237,6 +261,15 @@ install_z3
 install_hpack
 (cd "$PROJDIR" && hpack --silent)
 find_cabal   # sets global $cabal
+if [[ -z $ghc_requested ]]; then
+    find_ghc
+else
+    echo -n 'Setting requested GHC: '
+    "$ghc_requested" --numeric-version \
+        || die 2 "Reqested GHC failed: $ghc_requested"
+    $cabal configure --enable-append --disable-backup \
+        --with-compiler "$ghc_requested"
+fi
 install_stack
 #   Ensure toolchain is installed before checking for ghc core, because
 #   otherwise the ghc core check will silently install GHC etc., giving
