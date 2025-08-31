@@ -1,6 +1,6 @@
 module Tarnyq
     (   RewriteM(..), Rewrite,
-        get, put, guard, matchFail,
+        get, put, guard, fail',
         mkLift,
         evalOnePath, evalAllPaths
     )
@@ -26,28 +26,35 @@ instance Applicative (RewriteM s) where
     pure x = RewriteM (\s -> Just (x, s))
     (<*>) = ap
 
-instance Alternative (RewriteM s) where
-    empty = RewriteM $ \_ -> Nothing
-    r1 <|> r2 = RewriteM $ \s -> ((getFun r1) s) <|> ((getFun r2) s)
-
 instance Monad (RewriteM s) where
     p >>= q = RewriteM $
         \s -> case ((getFun p) s) of
                     Nothing       -> Nothing
                     Just (a', s') -> ((getFun $ q a') s')
 
--- Action that does not match on any states.
-matchFail :: RewriteM  s a
-matchFail = empty
+-- The additional parameter to fail is only useful in Monads that can carry that value,
+-- such are (Either a String) or MonadExcept. It doesn't make much sense, so
+-- we throw out the value here.
 
 -- MonadFail allows us to have binding patterns that fail in do notation.
 instance MonadFail (RewriteM s) where
-    fail _ = matchFail
+    fail _ = RewriteM $ \_ -> Nothing
+
+-- Since we're throwing out the value anyway, lets not force the caller to
+-- think of a value each time.
+
+fail' :: RewriteM s a
+fail' = fail "dummy"
+
+instance Alternative (RewriteM s) where
+    empty = RewriteM $ \_ -> fail "empty."
+    r1 <|> r2 = RewriteM $ \s -> ((getFun r1) s) <|> ((getFun r2) s)
+
 
 -- TODO Implement Alternative and MonadPlus so we can use their guard.
 guard :: Bool -> Rewrite s
 guard True  = pure ()
-guard False = matchFail
+guard False = fail'
 
 -- Similar to the State Monad, we can get and put the state.
 get :: RewriteM s s
@@ -76,7 +83,7 @@ mkLift unplug plug rw
        case (getFun rw) p of
          Just (a, p') -> do put $ plug p' ctx
                             pure a
-         Nothing      -> matchFail
+         Nothing      -> fail'
 
 
 {-  The functions below are (nearly) forced always to be inlined because
@@ -105,7 +112,7 @@ evalOnePath rewrites state = eval' state (next state)  where
     -- The next state is from the first rule in [Rewrite s] that matches,
     -- or Nothing if no rules match.
     next :: s -> Maybe s
-    next = unwrapRewrite $ foldr (<|>) matchFail rewrites
+    next = unwrapRewrite $ foldr (<|>) fail' rewrites
 
     unwrapRewrite :: Rewrite a -> (a -> Maybe a)
     unwrapRewrite rw = (fmap snd) . (getFun rw)
