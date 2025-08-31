@@ -181,7 +181,7 @@ find_cabal() {
         cabal="$exe"
         return 0
     done
-    die 3 'Cannot find a `cabal` executable. Install one with ghcup?'
+    die 3 'Cannot find a `cabal` executable. Install one with ghcup?\n\tSee https://www.haskell.org/ghcup/'
 }
 
 set_find_ghc() {
