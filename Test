@@ -348,7 +348,7 @@ $gen_ghc_core && generate_ghc_core
     [[ -n ${ghci_modules[*]} ]] && ghci_inputs+=(":load! ${ghci_modules[*]}")
     ghci_inputs+=("Prelude.putStrLn $ Prelude.replicate 79 '─'")
     ghci_inputs+=("${ghci_exprs[@]}")
-    printf '%s\n' "${ghci_inputs[@]}" | stack ghci --no-load || fail
+    printf '%s\n' "${ghci_inputs[@]}" | pcabal repl --repl-no-load || fail
 }
 
 echo '━━━━━ Test'
