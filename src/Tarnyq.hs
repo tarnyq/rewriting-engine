@@ -7,6 +7,7 @@ module Tarnyq
   where
 
 import Control.Monad (ap)
+import Control.Applicative
 
 ----------------------------------------------------------------------
 --  RewriteM represents a *possible* transition over a state.
@@ -25,6 +26,10 @@ instance Applicative (RewriteM s) where
     pure x = RewriteM (\s -> Just (x, s))
     (<*>) = ap
 
+instance Alternative (RewriteM s) where
+    empty = RewriteM $ \_ -> Nothing
+    r1 <|> r2 = RewriteM $ \s -> ((getFun r1) s) <|> ((getFun r2) s)
+
 instance Monad (RewriteM s) where
     p >>= q = RewriteM $
         \s -> case ((getFun p) s) of
@@ -33,7 +38,7 @@ instance Monad (RewriteM s) where
 
 -- Action that does not match on any states.
 matchFail :: RewriteM  s a
-matchFail = RewriteM $ \_ -> Nothing
+matchFail = empty
 
 -- MonadFail allows us to have binding patterns that fail in do notation.
 instance MonadFail (RewriteM s) where
@@ -87,12 +92,6 @@ mkLift unplug plug rw
 ------------------------------------------------------------------------
 --  One path evaluation
 
-{-# INLINE orElse #-}
-orElse :: RewriteM s a -> RewriteM s a -> RewriteM s a
-orElse r1 r2 = RewriteM $ \state -> case ((getFun r1) state) of
-                                Nothing  -> (getFun r2) state
-                                Just ret -> Just ret
-
 {-# INLINE evalOnePath #-}
 -- Return the terminal state of one path through the execution tree using
 -- first-match evaluation.
@@ -106,7 +105,7 @@ evalOnePath rewrites state = eval' state (next state)  where
     -- The next state is from the first rule in [Rewrite s] that matches,
     -- or Nothing if no rules match.
     next :: s -> Maybe s
-    next = unwrapRewrite $ foldr orElse matchFail rewrites
+    next = unwrapRewrite $ foldr (<|>) matchFail rewrites
 
     unwrapRewrite :: Rewrite a -> (a -> Maybe a)
     unwrapRewrite rw = (fmap snd) . (getFun rw)
