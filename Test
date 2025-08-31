@@ -49,6 +49,20 @@ since_timestamp() {
     "$@"
 }
 
+#   Run the `cabal` selected for this project, using selected verbosity.
+pcabal() {
+    #   We set cabal to a verbosity level one less than this script's
+    #   verbosity level because cabal is quite noisy. So `-v` will produce
+    #   more information from this script while still suppressing cabal;
+    #   `-v -v` will start adding cabal verbose output.
+    local vn=$(($verbosity - 1))
+    #   --verbose accepts only '0' through '3'.
+    [[ $vn -lt 0 ]] && vn=0
+    [[ $vn -gt 3 ]] && vn=3
+    #   --verbose is not documented as a global flag, but seems to be one.
+    $cabal --verbose=$vn "$@"
+}
+
 ####################################################################
 
 clean() {
