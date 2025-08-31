@@ -44,6 +44,7 @@ fail' = fail "dummy"
 
 instance (MonadFail m, Alternative m) => Alternative (RewriteM m s) where
     empty = RewriteM $ \_ -> fail "empty."
+    {-# INLINE (<|>) #-}
     r1 <|> r2 = RewriteM $ \s -> ((getFun r1) s) <|> ((getFun r2) s)
 
 
