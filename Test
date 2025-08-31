@@ -338,20 +338,23 @@ install_ghc_core
 echo '━━━━━ Build (this may take some time)'
 cd "$PROJDIR"
 pcabal build || fail
-
 #   Automatically generate core output for later examination
 #   and comparison between commits.
 $gen_ghc_core && generate_ghc_core
 
-[[ -n ${ghci_exprs[*]} ]] && {
+echo '━━━━━ Test'
+if [[ -z ${ghci_exprs[*]} ]]; then
+    pcabal test || fail "Tests failed."
+else
+    #   Note that the prompts will not appear unless $verbosity=2 or above
+    #   (giving -v1 to cabal). That will also produce a bunch of additional
+    #   build output and the GHCi version header and the like.
     ghci_inputs=(':set prompt "▪ "')
     [[ -n ${ghci_modules[*]} ]] && ghci_inputs+=(":load! ${ghci_modules[*]}")
-    ghci_inputs+=("Prelude.putStrLn $ Prelude.replicate 79 '─'")
+    header='"───── REPL output ─────────────────────────────────────────────────────"'
+    ghci_inputs+=("Prelude.putStrLn $header")
     ghci_inputs+=("${ghci_exprs[@]}")
     printf '%s\n' "${ghci_inputs[@]}" | pcabal repl --repl-no-load || fail
-}
-
-echo '━━━━━ Test'
-pcabal test || fail "Tests failed."
+fi
 
 echo "OK ($(elapsed)s)"
