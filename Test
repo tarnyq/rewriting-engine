@@ -10,7 +10,7 @@ elapsed() {                    # fractional seconds (2 places) since start
     echo "$(($msx10/100)).$(($msx10%100))"
 }
 
-die()  { ec="$1"; shift; echo 1>&2 "ERROR ($ec):" "$@"; exit $ec; }
+die()  { ec="$1"; shift; echo 1>&2 -e "ERROR ($ec):" "$@"; exit $ec; }
 fail() {
     ec=$?
     [[ -n $@ ]] && echo 1>&2 "$@"
