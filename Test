@@ -28,9 +28,6 @@ vecho() {
 #   Replace well-known path prefixes with a much shorter version.
 prettypath() {
     local path="$1"; shift
-    #   XXX should use $GHCUP_USE_XDG_DIRS if set, otherwise
-    #   $GHCUP_INSTALL_BASE_PREFIX (defaults to $HOME),
-    local ghcup_bin="$HOME/.ghcup/bin"
     path=${path/#$ghcup_bin\//ghcup:}
     path=${path/#$HOME/\~}
     echo "$path"
@@ -149,6 +146,21 @@ install_hpack() {
     chmod +x "$TOOLBIN/hpack"
 }
 
+#   Set $ghcup_bin to the location where `ghcup`'s bin directory should
+#   be based on the environment. (We do not confirm that it exists.)
+set_ghcup_bin() {
+    declare -g ghcup_bin
+    if [[ -n ${GHCUP_USE_XDG_DIRS:-} ]]; then
+        ghcup_bin=${XDG_BIN_HOME:-$HOME/.local/bin}
+    elif [[ -n ${GHCUP_INSTALL_BASE_PREFIX:-} ]]; then
+        #   Overrides $HOME as the location of the .ghcup/ subdir;
+        #   the latter name cannot be changed.
+        ghcup_bin="$GHCUP_INSTALL_BASE_PREFIX/.ghcup/bin"
+    else
+        ghcup_bin="$HOME/.ghcup/bin"
+    fi
+}
+
 #   This sets $cabal to the `cabal` executable we will use for builds.
 #   We assume that if there's a `cabal` available in $PATH, regardless
 #   of version, that's the one we should use because that's what the
@@ -163,7 +175,6 @@ find_cabal() {
     #   The `find` below doesn't do a proper numeric sort, but it produces
     #   a good-enough result that it's not worth splitting on '-' and again
     #   on '.' to try to get the very latest minor release.
-    local ghcup_bin="$HOME/.ghcup/bin"
     local exe
     vecho 1 -n "• Trying"
     for exe in                      \
@@ -211,7 +222,6 @@ find_ghc() {
     }
 
     local prefvers=(9.10.2  9.10.1  9.8.2)  # XXX add 9.12.2
-    local ghcup_bin="$HOME/.ghcup/bin"
     #   XXX exit if we already have a preferred version in
     #   cabal.project.local.
     local ver
@@ -289,11 +299,12 @@ generate_ghc_core() { (
 ) }
 
 ####################################################################
-#   Argument Parsing
+#   Environment setup and argument Parsing
 
 export PROJDIR=$(cd "$(dirname "$0")" && pwd -P)
 export BUILDDIR="$PROJDIR/.build"
 export TOOLBIN="$BUILDDIR/tool/bin"; mkdir -p "$TOOLBIN"; PATH="$TOOLBIN:$PATH"
+set_ghcup_bin
 
 verbosity=0         # Cabal verbosity level (default 1 but we always override
                     # it) and perhaps other things.
@@ -314,7 +325,7 @@ while [[ ${#@} -gt 0 ]]; do case "$1" in
 esac; done
 
 ####################################################################
-# Main
+#   Main
 
 echo '━━━━━ Development Tools'
 install_z3
