@@ -20,7 +20,7 @@ module KTutImp
     , eval_sum
     ) where
 
-import Prelude hiding (negate, div)
+import Prelude hiding (negate, div, print)
 import qualified Prelude (div)
 import Data.Map (Map, findWithDefault, fromList, insert, member)
 
@@ -69,6 +69,8 @@ data Stmts  = Block Block
             | If BExp Block Block
             | While BExp Block
             | StPair Stmts Stmts
+            | Print AExp
+
 data Pgm    = Pgm Ids Stmts
 type Ids    = [Id]
 
@@ -377,6 +379,23 @@ block = do (Block (StmtsBlock s)) <- get
 emptyBlock :: MonadFail m => Rewrite m K
 emptyBlock = do ((KI_Stmts (Block EmptyBlock)):rest) <- get
                 put rest
+
+
+------------------------------------------------------------------------
+
+class Monad m => Console m where
+  print :: String -> m ()
+
+instance Console m => Console (RewriteM m s) where
+  print str = RewriteM $ \s -> do print str
+                                  pure ((), s)
+
+print_ :: (Console m, MonadFail m) => Rewrite m Stmts
+print_ = do (Print (Int i)) <- get
+            print (show i)
+
+imp_io :: (Console m, MonadFail m) => [Rewrite m State]
+imp_io = imp ++ [liftStmts print_]
 
 ----------------------------------------------------------------------
 --  Sample programs to test syntax and semantics.
