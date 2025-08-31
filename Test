@@ -64,7 +64,7 @@ pcabal() {
     [[ $vn -lt 0 ]] && vn=0
     [[ $vn -gt 3 ]] && vn=3
     #   --verbose is not documented as a global flag, but seems to be one.
-    $cabal --verbose=$vn "$@"
+    "$TOOLBIN/cabal" --verbose=$vn "$@"
 }
 
 ####################################################################
@@ -161,16 +161,22 @@ set_ghcup_bin() {
     fi
 }
 
-#   This sets $cabal to the `cabal` executable we will use for builds.
-#   We assume that if there's a `cabal` available in $PATH, regardless
-#   of version, that's the one we should use because that's what the
-#   developer will be using at the command line. (We warn if the version
-#   is lower than we would like.) Otherwise we examine what's available
-#   in ~/.ghcup/bin/ and take either the default version set there, or
-#   the highest version available.
-find_cabal() {
+#   This links $TOOLBIN/cabal to the `cabal` executable we will use for
+#   builds. This will be used by this script because pcabal() uses
+#   $TOOLBIN/cabal (and anyway $TOOLBIN is always at the front of $PATH);
+#   it can also be used directly by the developer if he wants to put
+#   $TOOLBIN at the front of his path.
+#
+#   We assume that if there's a `cabal` available in $PATH, regardless of
+#   version, that's the one we should use because that's what the developer
+#   will be using at the command line if she doesn't use $TOOLBIN. (We warn
+#   if the version is lower than we would like.) Otherwise we examine
+#   what's available in ~/.ghcup/bin/ and take either the default version
+#   set there, or the highest version available.
+install_cabal() {
     vecho 1 '───── Finding cabal'
-    declare -g cabal
+    [[ -f $TOOLBIN/cabal ]] && return 0
+
     local  minver=3.11      # Warn if cabal we use is less than this version.
     #   The `find` below doesn't do a proper numeric sort, but it produces
     #   a good-enough result that it's not worth splitting on '-' and again
@@ -186,10 +192,13 @@ find_cabal() {
     ; do
         vecho 1 -n " $(prettypath "$exe")"
         "$exe" --numeric-version >/dev/null 2>&1 || continue
+        exe=$(command -v "$exe")    # get absolute path
         vecho 1; vecho 1 "• Found  $exe"
         local ver=$("$exe" --numeric-version)
         [[ $ver < $minver ]] && warn "version $ver < $minver for $exe"
-        cabal="$exe"
+        #   XXX This should be a relative link, but that's hard to do without
+        #   `realpath`, which isn't standard on MacOS.
+        ln -s "$exe" "$TOOLBIN/cabal"
         return 0
     done
     die 3 'Cannot find a `cabal` executable. Install one with ghcup?\n\tSee https://www.haskell.org/ghcup/'
@@ -331,7 +340,7 @@ echo '━━━━━ Development Tools'
 install_z3
 install_hpack
 build_hpack
-find_cabal   # sets global $cabal
+install_cabal
 set_find_ghc
 install_ghc_core
 
