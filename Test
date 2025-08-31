@@ -153,7 +153,7 @@ find_cabal() {
     #   on '.' to try to get the very latest minor release.
     local ghcup_bin="$HOME/.ghcup/bin"
     local exe
-    vecho 1 -n "Trying"
+    vecho 1 -n "• Trying"
     for exe in                      \
         cabal                       \
         "$ghcup_bin/cabal"          \
@@ -163,7 +163,7 @@ find_cabal() {
     ; do
         vecho 1 -n " $(prettypath "$exe")"
         "$exe" --numeric-version >/dev/null 2>&1 || continue
-        vecho 1; vecho 1 "Found  $exe"
+        vecho 1; vecho 1 "• Found  $exe"
         local ver=$("$exe" --numeric-version)
         [[ $ver < $minver ]] && warn "version $ver < $minver for $exe"
         cabal="$exe"
@@ -184,7 +184,7 @@ set_find_ghc() {
         $cabal configure --enable-append --disable-backup \
             --with-compiler "$ghc_requested"
     fi
-    vecho 1 "Using $(grep '^with-compiler:' $PROJDIR/cabal.project.local)"
+    vecho 1 "• Using $(grep '^with-compiler:' $PROJDIR/cabal.project.local)"
 }
 
 #   Unlike Cabal, where pretty much any version will work, only specific
@@ -193,7 +193,7 @@ set_find_ghc() {
 #   list of preferred versions.
 find_ghc() {
     grep -q -s '^with-compiler:' "$PROJDIR/cabal.project.local" && {
-        vecho 1 "Found 'with-compiler' setting in cabal.project.local"
+        vecho 1 "• Found 'with-compiler' setting in cabal.project.local"
         return 0
     }
 
@@ -204,7 +204,7 @@ find_ghc() {
     local ver
     for ver in "${prefvers[@]}"; do
         local ghcpath="$ghcup_bin/ghc-$ver"
-        vecho 1 "Trying $ghcpath"
+        vecho 1 "• Trying $ghcpath"
         "$ghcpath" --numeric-version >/dev/null 2>&1 || continue
         $cabal configure --enable-append --disable-backup \
             --with-compiler "$ghcpath"
@@ -259,6 +259,7 @@ generate_ghc_core() { (
     commit=$(git describe --always --dirty)
     mkdir -p .build/ghc-core/obj/
     for src in app/*.hs src/*.hs; do
+        vecho 1 "• $src"
         #   ghc will generate an executable if the name of the module
         #   is `Main` and places it in the source dir no matter the
         #   -outputdir setting, so we have to disable that manually.
