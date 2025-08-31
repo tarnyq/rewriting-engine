@@ -18,6 +18,23 @@ fail() {
     exit $ec
 }
 warn()  { echo 1>&2 'Warning:' "$@"; }
+vecho() {
+    minlevel="$1"; shift
+    declare -g verbosity
+    [[ $verbosity -ge $minlevel ]] || return 0
+    echo "$@"
+}
+
+#   Replace well-known path prefixes with a much shorter version.
+prettypath() {
+    local path="$1"; shift
+    #   XXX should use $GHCUP_USE_XDG_DIRS if set, otherwise
+    #   $GHCUP_INSTALL_BASE_PREFIX (defaults to $HOME),
+    local ghcup_bin="$HOME/.ghcup/bin"
+    path=${path/#$ghcup_bin\//ghcup:}
+    path=${path/#$HOME/\~}
+    echo "$path"
+}
 
 since_timestamp() {
     local tsdir="$BUILDDIR/timestamp"
@@ -91,9 +108,11 @@ install_stack() {
 #   [1]: https://raw.githubusercontent.com/sol/hpack/main/get-hpack.sh
 #
 install_hpack() {
+    local platform='Linux x86_64'
+
+    vecho 1 "───── Checking HPack for $platform"
     [[ -x $TOOLBIN/hpack ]] && return 0
 
-    platform='Linux x86_64'
     echo "───── Installing HPack for $platform"
     [[ $platform = $(uname -sm) ]] || die 9 \
         "install_hpack() supports only $platform, not $(uname -sm)"
@@ -112,6 +131,7 @@ install_hpack() {
 #   in ~/.ghcup/bin/ and take either the default version set there, or
 #   the highest version available.
 find_cabal() {
+    vecho 1 '───── Finding cabal'
     declare -g cabal
     local  minver=3.11      # Warn if cabal we use is less than this version.
     #   The `find` below doesn't do a proper numeric sort, but it produces
@@ -119,6 +139,7 @@ find_cabal() {
     #   on '.' to try to get the very latest minor release.
     local ghcup_bin="$HOME/.ghcup/bin"
     local exe
+    vecho 1 -n "Trying"
     for exe in                      \
         cabal                       \
         "$ghcup_bin/cabal"          \
@@ -126,7 +147,9 @@ find_cabal() {
             && find "$ghcup_bin" -name cabal-\* \
             | sort -r) \
     ; do
+        vecho 1 -n " $(prettypath "$exe")"
         "$exe" --numeric-version >/dev/null 2>&1 || continue
+        vecho 1; vecho 1 "Found  $exe"
         local ver=$("$exe" --numeric-version)
         [[ $ver < $minver ]] && warn "version $ver < $minver for $exe"
         cabal="$exe"
@@ -135,12 +158,30 @@ find_cabal() {
     die 3 'Cannot find a `cabal` executable. Install one with ghcup?'
 }
 
+set_find_ghc() {
+    declare -g ghc_requested
+    vecho 1 '───── Finding/setting ghc'
+    if [[ -z $ghc_requested ]]; then
+        find_ghc
+    else
+        echo -n 'Setting requested GHC: '
+        "$ghc_requested" --numeric-version \
+            || die 2 "Reqested GHC failed: $ghc_requested"
+        $cabal configure --enable-append --disable-backup \
+            --with-compiler "$ghc_requested"
+    fi
+    vecho 1 "Using $(grep '^with-compiler:' $PROJDIR/cabal.project.local)"
+}
+
 #   Unlike Cabal, where pretty much any version will work, only specific
 #   versions of GHC can work with Liquid Haskell. Unless the user has
 #   specified an override, we attempt to chose the earliest from our
 #   list of preferred versions.
 find_ghc() {
-    grep -qs '^with-compiler:' "$PROJDIR/cabal.project.local" && return 0
+    grep -q -s '^with-compiler:' "$PROJDIR/cabal.project.local" && {
+        vecho 1 "Found 'with-compiler' setting in cabal.project.local"
+        return 0
+    }
 
     local prefvers=(9.10.2  9.10.1  9.8.2)  # XXX add 9.12.2
     local ghcup_bin="$HOME/.ghcup/bin"
@@ -149,6 +190,7 @@ find_ghc() {
     local ver
     for ver in "${prefvers[@]}"; do
         local ghcpath="$ghcup_bin/ghc-$ver"
+        vecho 1 "Trying $ghcpath"
         "$ghcpath" --numeric-version >/dev/null 2>&1 || continue
         $cabal configure --enable-append --disable-backup \
             --with-compiler "$ghcpath"
@@ -162,6 +204,7 @@ find_ghc() {
 #   issues with different versions being not quite right; we may want
 #   just to build this ourselves.
 install_z3() {
+    vecho 1 '───── Checking Z3'
     z3 --version >/dev/null 2>&1 || {
     echo '───── Installing Z3'
     sudo apt install z3 \
@@ -189,6 +232,13 @@ install_ghc_core() {
 }
 
 ####################################################################
+
+build_hpack() {
+    vecho 1 '───── Generating .cabal files from HPack project.yaml'
+    local silent=--silent
+    [[ $verbosity -gt 0 ]] && silent=
+    (cd "$PROJDIR" && hpack $silent)
+}
 
 generate_ghc_core() { (
     command cd "$PROJDIR"
@@ -259,17 +309,9 @@ esac; done
 echo '━━━━━ Development Tools'
 install_z3
 install_hpack
-(cd "$PROJDIR" && hpack --silent)
+build_hpack
 find_cabal   # sets global $cabal
-if [[ -z $ghc_requested ]]; then
-    find_ghc
-else
-    echo -n 'Setting requested GHC: '
-    "$ghc_requested" --numeric-version \
-        || die 2 "Reqested GHC failed: $ghc_requested"
-    $cabal configure --enable-append --disable-backup \
-        --with-compiler "$ghc_requested"
-fi
+set_find_ghc
 
 #   XXX We need to get the install_ghc_core thing working with cabal
 #stack build --dependencies-only --test --bench
@@ -291,6 +333,7 @@ $cabal build --verbose=$verbosity || fail
 #   and comparison between commits.
 $gen_ghc_core && generate_ghc_core
 
+echo '━━━━━ Test'
 $cabal test || fail "Tests failed."
 
 echo "OK ($(elapsed)s)"
