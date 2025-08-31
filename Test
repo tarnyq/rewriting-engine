@@ -49,6 +49,13 @@ since_timestamp() {
     "$@"
 }
 
+####################################################################
+
+#   Return the path to the `gcc` executable we're using.
+with_compiler() {
+    sed -n -e 's/^with-compiler: //p' "$PROJDIR/cabal.project.local"
+}
+
 #   Run the `cabal` selected for this project, using selected verbosity.
 pcabal() {
     #   We set cabal to a verbosity level one less than this script's
@@ -178,10 +185,11 @@ set_find_ghc() {
     if [[ -z $ghc_requested ]]; then
         find_ghc
     else
-        echo -n 'Setting requested GHC: '
+        echo "Setting requested GHC: $ghc_requested"
+        echo -n 'Version: '
         "$ghc_requested" --numeric-version \
             || die 2 "Reqested GHC failed: $ghc_requested"
-        $cabal configure --enable-append --disable-backup \
+        pcabal configure --enable-append --disable-backup \
             --with-compiler "$ghc_requested"
     fi
     vecho 1 "• Using $(grep '^with-compiler:' $PROJDIR/cabal.project.local)"
@@ -206,7 +214,7 @@ find_ghc() {
         local ghcpath="$ghcup_bin/ghc-$ver"
         vecho 1 "• Trying $ghcpath"
         "$ghcpath" --numeric-version >/dev/null 2>&1 || continue
-        $cabal configure --enable-append --disable-backup \
+        pcabal configure --enable-append --disable-backup \
             --with-compiler "$ghcpath"
         return 0
     done
@@ -226,13 +234,11 @@ install_z3() {
     }
 }
 
-#   Some development tools available from Stackage are a binary we run,
-#   rather than a library we use, and we appear to be unable to add those
-#   sorts of things to our {package,stack}.yaml. This adds these to the
-#   current project to make them available via `stack exec`. (They are
-#   actually available globally for any Stack-using project using the same
-#   resolver and, where compiler-specific, compiler version.)
 install_ghc_core() {
+    vecho 1 '───── Checking for ghc-core executable'
+    pcabal exec -- ghc-core --help >/dev/null 2>&1 && return 0
+
+    vecho 0 '───── Building/installing ghc-core'
     pcre-config --version >/dev/null 2>&1 || {
         echo '───── Installing libpcre3-dev'
         #   XXX Seems this wants to produce two dozen or more lines of output
@@ -240,9 +246,7 @@ install_ghc_core() {
         sudo apt -q -q -qq install -y -q -q -qq libpcre3-dev \
             || die 3 'Cannot `apt install libpcre3-dev`; try your own package manager?'
     }
-    #   Ensure deps are installed at this point or Stack will install GHC
-    #   etc. here, with no output, producing a long, mysterious wait.
-    stack exec -- ghc-core -h >/dev/null 2>&1 || stack build ghc-core
+    pcabal install ghc-core --installdir="$TOOLBIN" || fail
 }
 
 ####################################################################
@@ -255,6 +259,7 @@ build_hpack() {
 }
 
 generate_ghc_core() { (
+    vecho 0 '───── ghc-core generation'
     command cd "$PROJDIR"
     commit=$(git describe --always --dirty)
     mkdir -p .build/ghc-core/obj/
@@ -270,7 +275,8 @@ generate_ghc_core() { (
         #   -O2 is the default; we use -O1 because that's the much more
         #   typical optimisation level for production code and compiles
         #   faster for very little worse execution time and space.
-        stack exec -- ghc-core --no-syntax --no-cast --no-asm \
+        pcabal exec -- ghc-core --no-syntax --no-cast --no-asm \
+            --with-ghc="$(with_compiler)" \
             -- -O1 $oarg -outputdir .build/ghc-core/obj/ \
             "$src" > ".build/ghc-core/$(basename "$src" .hs)-$commit.core" \
             || fail "ghc-core: cannot compile $src"
@@ -327,14 +333,15 @@ install_hpack
 build_hpack
 find_cabal   # sets global $cabal
 set_find_ghc
-
-#   XXX We need to get the install_ghc_core thing working with cabal
-#stack build --dependencies-only --test --bench
-#install_ghc_core
+install_ghc_core
 
 echo '━━━━━ Build (this may take some time)'
 cd "$PROJDIR"
-$cabal build --verbose=$verbosity || fail
+pcabal build || fail
+
+#   Automatically generate core output for later examination
+#   and comparison between commits.
+$gen_ghc_core && generate_ghc_core
 
 [[ -n ${ghci_exprs[*]} ]] && {
     ghci_inputs=(':set prompt "▪ "')
@@ -344,11 +351,7 @@ $cabal build --verbose=$verbosity || fail
     printf '%s\n' "${ghci_inputs[@]}" | stack ghci --no-load || fail
 }
 
-#   Automatically generate core output for later examination
-#   and comparison between commits.
-$gen_ghc_core && generate_ghc_core
-
 echo '━━━━━ Test'
-$cabal test || fail "Tests failed."
+pcabal test || fail "Tests failed."
 
 echo "OK ($(elapsed)s)"
