@@ -96,6 +96,11 @@ clean() {
 
 ####################################################################
 
+#   We don't currently use Stack, but we keep there here for the moment
+#   in case it makes sense to start supporting it again later. (We hope
+#   it won't.) If we re-introduce this, we will also have to add back or
+#   re-make the `stack.yaml` files appropriate for each version; these
+#   are in the history under lhver/.
 #   • We automatically install stack for users that don't have it on the
 #     principle that you very rarely want a different installation (e.g., a
 #     distro-packaged version), and even there it would get quite hairy
@@ -293,7 +298,6 @@ export TOOLBIN="$BUILDDIR/tool/bin"; mkdir -p "$TOOLBIN"; PATH="$TOOLBIN:$PATH"
 verbosity=0         # Cabal verbosity level (default 1 but we always override
                     # it) and perhaps other things.
 ghc_requested=      # Non-empty = user has requested use of a specific GHC.
-lhver=              # Switch to different version of Liquid Haskell.
 ghci_modules=()     # Run ghci after build, :load! the given modules, and
 ghci_exprs=()       #   then evaluate the given expressions.
 gen_ghc_core=false  # Generate .build/ghc-core/ files for all source files.
@@ -303,7 +307,6 @@ while [[ ${#@} -gt 0 ]]; do case "$1" in
     -G)             shift; ghc_requested="$1"; shift;;
     -g)             shift; gen_ghc_core=true;;
     -v|--verbose)   shift; verbosity=$(($verbosity+1));;    # multiple times ok
-    -l|--lhver)     shift; lhver="$1"; shift;;
     -m|--module)    shift; ghci_modules+=("$1"); shift;;
     -e|--expr)      shift; ghci_exprs+=("$1"); shift;;
     -*)             die 2 "Unknown option: $1";;
@@ -312,20 +315,6 @@ esac; done
 
 ####################################################################
 # Main
-
-[[ -n $lhver ]] && (
-    command cd "$PROJDIR"
-        for file in stack.yaml; do
-            vfile=lhver/$lhver-$file
-            if [[ -r lhver/$lhver-$file ]]; then
-                rm -f $file
-                ln -s $vfile $file
-                echo "$file → $(readlink $file)"
-            else
-                echo "Warning: $vfile not found; leaving existing file"
-            fi
-        done
-)
 
 echo '━━━━━ Development Tools'
 install_z3
