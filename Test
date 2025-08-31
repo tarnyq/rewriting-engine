@@ -177,7 +177,12 @@ install_cabal() {
     vecho 1 '───── Finding cabal'
     [[ -f $TOOLBIN/cabal ]] && return 0
 
-    local  minver=3.11      # Warn if cabal we use is less than this version.
+    #   Cabal 3.12 is when we get Nix-style sandboxed-builds[1], so we
+    #   prefer to use at least that version. Earlier versions will end
+    #   up doing full rebuilds from what later versions did.
+    #   (XXX Explain this better.)
+    #   [1]: https://cabal.readthedocs.io/en/3.12/how-to-build-like-nix.html
+    local  minver=3.12      # Warn if cabal we use is less than this version.
     #   The `find` below doesn't do a proper numeric sort, but it produces
     #   a good-enough result that it's not worth splitting on '-' and again
     #   on '.' to try to get the very latest minor release.
