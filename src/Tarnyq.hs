@@ -19,52 +19,48 @@ import Control.Applicative
 --  is possible for the action to not "match", returning a Nothing.
 --  This lets us try multiple rewrites in parallel until one succeeds.
 
-newtype RewriteM s a = RewriteM { getFun :: s -> Maybe (a, s) }
+newtype RewriteM m s a = RewriteM { getFun :: s -> m (a, s) }
     deriving Functor
 
-instance Applicative (RewriteM s) where
-    pure x = RewriteM (\s -> Just (x, s))
+instance Monad m => Applicative (RewriteM m s) where
+    pure x = RewriteM (\s -> pure (x, s))
     (<*>) = ap
 
-instance Monad (RewriteM s) where
+instance Monad m => Monad (RewriteM m s) where
     p >>= q = RewriteM $
-        \s -> case ((getFun p) s) of
-                    Nothing       -> Nothing
-                    Just (a', s') -> ((getFun $ q a') s')
+        \s -> do (a', s') <- ((getFun p) s)
+                 (getFun $ q a') s'
 
--- The additional parameter to fail is only useful in Monads that can carry that value,
--- such are (Either a String) or MonadExcept. It doesn't make much sense, so
--- we throw out the value here.
 
 -- MonadFail allows us to have binding patterns that fail in do notation.
-instance MonadFail (RewriteM s) where
-    fail _ = RewriteM $ \_ -> Nothing
+instance MonadFail m => MonadFail (RewriteM m s) where
+    fail msg = RewriteM $ \_ -> fail msg
 
 -- Since we're throwing out the value anyway, lets not force the caller to
 -- think of a value each time.
 
-fail' :: RewriteM s a
+fail' :: MonadFail m => RewriteM m s a
 fail' = fail "dummy"
 
-instance Alternative (RewriteM s) where
+instance (MonadFail m, Alternative m) => Alternative (RewriteM m s) where
     empty = RewriteM $ \_ -> fail "empty."
     r1 <|> r2 = RewriteM $ \s -> ((getFun r1) s) <|> ((getFun r2) s)
 
 
--- TODO Implement Alternative and MonadPlus so we can use their guard.
-guard :: Bool -> Rewrite s
+-- Rewrite rules may only update the State
+type Rewrite m s = RewriteM m s ()
+
+
+guard :: MonadFail m => Bool -> Rewrite m s
 guard True  = pure ()
 guard False = fail'
 
 -- Similar to the State Monad, we can get and put the state.
-get :: RewriteM s s
-get = RewriteM $ \s -> Just (s, s)
+get :: MonadFail m => RewriteM m s s
+get = RewriteM $ \s -> pure (s, s)
 
-put :: s -> RewriteM s ()
-put s = RewriteM $ \_ -> Just ((), s)
-
--- Rewrite rules may only update the State
-type Rewrite s = RewriteM s ()
+put :: MonadFail m => s -> RewriteM m s ()
+put s = RewriteM $ \_ -> pure ((), s)
 
 -- "Contexts" may be defined using two functions: "unplug", that pulls a
 -- subterm (called the plug (noun)) out of a larger term, and
@@ -77,14 +73,14 @@ type Rewrite s = RewriteM s ()
 -- to the context's type.
 
 {-# INLINE mkLift #-}
-mkLift :: (s -> Maybe (p, c)) -> (p -> c -> s) -> (RewriteM p a -> RewriteM s a)
+mkLift :: MonadFail m =>
+    (s -> Maybe (p, c)) -> (p -> c -> s) -> (RewriteM m p a -> RewriteM m s a)
 mkLift unplug plug rw
-  = do Just (p, ctx) <- fmap unplug get
-       case (getFun rw) p of
-         Just (a, p') -> do put $ plug p' ctx
-                            pure a
-         Nothing      -> fail'
-
+  = RewriteM $ \s ->
+       case unplug s of
+            Just (p, ctx) -> do (a, p') <- (getFun rw) p
+                                pure (a, plug p' ctx)
+            Nothing       -> fail "no match"
 
 {-  The functions below are (nearly) forced always to be inlined because
     we use INLINE instead of INLINABLE; GHC is not eager enough to inline
@@ -102,7 +98,7 @@ mkLift unplug plug rw
 {-# INLINE evalOnePath #-}
 -- Return the terminal state of one path through the execution tree using
 -- first-match evaluation.
-evalOnePath :: forall s. [Rewrite s] -> s -> s
+evalOnePath :: forall s. [Rewrite Maybe s] -> s -> s
 evalOnePath rewrites state = eval' state (next state)  where
     -- Given the current state and the next state/no-state:
     eval' :: s -> Maybe s -> s
@@ -114,7 +110,7 @@ evalOnePath rewrites state = eval' state (next state)  where
     next :: s -> Maybe s
     next = unwrapRewrite $ foldr (<|>) fail' rewrites
 
-    unwrapRewrite :: Rewrite a -> (a -> Maybe a)
+    unwrapRewrite :: Rewrite Maybe a -> (a -> Maybe a)
     unwrapRewrite rw = (fmap snd) . (getFun rw)
 
     --  Mystery! foldr1 is 1/3 the speed of foldr above.
@@ -125,7 +121,7 @@ evalOnePath rewrites state = eval' state (next state)  where
 
 -- Return all terminal states (leaves of an execution tree) using
 -- depth-first evaluation.
-evalAllPaths :: forall a. [Rewrite a] -> a -> [a]
+evalAllPaths :: forall a. [Rewrite Maybe a] -> a -> [a]
 evalAllPaths rewrites s = eval' [s] (next s) where
 
     -- We process the list of current states (cs) in depth-first order,
@@ -163,7 +159,7 @@ evalAllPaths rewrites s = eval' [s] (next s) where
     next = foldr parRewrite (\_ -> []) (map rewriteListResult rewrites)
 
     -- Given a rewrite rule, convert the result from a Maybe to a List.
-    rewriteListResult :: Rewrite a -> (a -> [a])
+    rewriteListResult :: Rewrite Maybe a -> (a -> [a])
     rewriteListResult rw = \s -> case ((getFun rw) s) of
                                   Nothing -> []
                                   Just((), s') -> [s']
