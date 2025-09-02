@@ -11,6 +11,9 @@ minbash() {
     [[ ${BASH_VERSINFO[0]} -eq $major && ${BASH_VERSINFO[1]} -ge $minor ]]
 }
 
+####################################################################
+#   Utility functions.
+
 elapsed_start=$(date +%s%2N)   # 10s of milliseconds since the epoch
 elapsed() {                    # fractional seconds (2 places) since start
     local msx10=$(( $(date +%s%2N) - $elapsed_start ))
@@ -54,6 +57,44 @@ since_timestamp() {
 }
 
 ####################################################################
+#   Build System Usage
+
+#   Removes pretty much everything, to start with a fully clean build.
+#   This includes our detected development toolchain. It does not include
+#   "common" build products of Hackage downloads that are shared amongst
+#   all projects.
+clean_large() {
+    clean_small             # clean_small() covers things not below.
+    local cleantrees=(
+        "$BUILDDIR"         # This will re-select the build tools as well.
+        "$PROJDIR"/cabal.project.local
+        "$PROJDIR"/cabal.project.local~
+    )
+    rm -rf "${cleantrees[@]}"
+}
+
+clean_small() {
+    #   .gitignore has, where necessary, comments detailing what these do
+    #   and special cirumstances about them.
+    local cleantrees=(
+        "$BUILDDIR"/timestamps/
+        "$PROJDIR"/dist-newstyle/
+        "$PROJDIR"/*.cabal
+        #   We don't clean .build/ghc-core/*.core on a "small" clean
+        #   because this doesn't affect future builds at all, and
+        #   regenerating them can be a pain.
+        "$BUILDDIR"/ghc-core/obj/
+        #   We keep this here instead of putting it under .build/ because
+        #   we expect stand-alone `stack` invocations which will look for
+        #   it only here.
+        "$PROJDIR"/.stack-work/
+        "$PROJDIR"/stack.yaml.lock
+        #   It's not clear how to move this to a build directory.
+        "$PROJDIR/src/.liquid/"
+        "$PROJDIR/src/experiment/.liquid/"
+    )
+    rm -rf "${cleantrees[@]}"
+}
 
 #   Return the path to the `gcc` executable we're using.
 with_compiler() {
@@ -72,30 +113,6 @@ pcabal() {
     [[ $vn -gt 3 ]] && vn=3
     #   --verbose is not documented as a global flag, but seems to be one.
     "$TOOLBIN/cabal" --verbose=$vn "$@"
-}
-
-####################################################################
-
-clean() {
-    local cleantrees=(
-        #   We don't clean .build/ghc-core/*.core on a "small" clean
-        #   because this doesn't affect future builds at all, and
-        #   regenerating them can be a pain.
-        "$BUILDDIR"/ghc-core/obj/
-        "$BUILDDIR"/timestamps/
-        #   We keep this here instead of putting it under .build/ because
-        #   we expect stand-alone `stack` invocations which will look for
-        #   it only here.
-        "$PROJDIR"/.stack-work/
-        #   Though generated files in the repo, distributions of specific
-        #   versions of the source would probably include these at these
-        #   exact locations. See .gitignore for more details.
-        "$PROJDIR"/stack.yaml.lock      # See .gitignore for details
-        "$PROJDIR"/*.cabal              #   on these two items.
-        #   It's not clear how to move this to a build directory.
-        "$PROJDIR/src/.liquid/"
-    )
-    rm -rf "${cleantrees[@]}"
 }
 
 ####################################################################
@@ -342,7 +359,7 @@ generate_ghc_core() { (
 
 export PROJDIR=$(cd "$(dirname "$0")" && pwd -P)
 export BUILDDIR="$PROJDIR/.build"
-export TOOLBIN="$BUILDDIR/tool/bin"; mkdir -p "$TOOLBIN"; PATH="$TOOLBIN:$PATH"
+export TOOLBIN="$BUILDDIR/tool/bin"
 set_ghcup_bin
 
 verbosity=0         # Cabal verbosity level (default 1 but we always override
@@ -353,7 +370,8 @@ ghci_exprs=()       #   then evaluate the given expressions.
 gen_ghc_core=false  # Generate .build/ghc-core/ files for all source files.
 while [[ ${#@} -gt 0 ]]; do case "$1" in
     --)             shift; break;;
-    -C|-c)          shift; clean;;
+    -C)             shift; clean_large;;
+    -c)             shift; clean_small;;
     -G)             shift; ghc_requested="$1"; shift;;
     -g)             shift; gen_ghc_core=true;;
     -v|--verbose)   shift; verbosity=$(($verbosity+1));;    # multiple times ok
@@ -362,6 +380,8 @@ while [[ ${#@} -gt 0 ]]; do case "$1" in
     -*)             die 2 "Unknown option: $1";;
     *)              break;;
 esac; done
+
+mkdir -p "$TOOLBIN"; PATH="$TOOLBIN:$PATH"
 
 ####################################################################
 #   Main
