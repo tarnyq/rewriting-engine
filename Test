@@ -183,6 +183,14 @@ install_cabal() {
     #   (XXX Explain this better. Are the older vers using global object dirs?)
     #   [1]: https://cabal.readthedocs.io/en/3.12/how-to-build-like-nix.html
     local  minver=3.12      # Warn if cabal we use is less than this version.
+
+    #   Note that we do *not* use "$ghcup_bin/cabal" since while it's in
+    #   theory the version of cabal that the devleoper prefers, in practice
+    #   it's whatever was last installed (maybe even a version with
+    #   security vulnerabilities!).[1] This can always be overridden by
+    #   hand by manually making a link in $TOOLBIN/.
+    #   [1]: https://github.com/haskell/ghcup-hs/issues/1281
+    #
     #   The `find` below doesn't do a proper numeric sort, but it produces
     #   a good-enough result that it's not worth splitting on '-' and again
     #   on '.' to try to get the very latest minor release.
@@ -190,7 +198,6 @@ install_cabal() {
     vecho 1 -n "• Trying"
     for exe in                      \
         cabal                       \
-        "$ghcup_bin/cabal"          \
         $([[ -d $ghcup_bin ]]       \
             && find "$ghcup_bin" -name cabal-\* \
             | sort -r) \
