@@ -100,6 +100,20 @@ clean_small() {
 with_compiler() {
     sed -n -e 's/^with-compiler: //p' "$PROJDIR/cabal.project.local"
 }
+#
+#   `cabal configure --enable-append --disable-backup --with-compiler`
+#   will not work if a *.cabal file does not exist. The easiest work-around
+#   seems to be simply to create/update the file ourselves, and at least
+#   the format is basically a documented API.
+set_with_compiler() {
+    local path="$1"; shift
+    local conffile="$PROJDIR/cabal.project.local"
+    #   We don't need to remove any earlier 'with-compiler' option because
+    #   the later one has precedence. Yes, somewhat hacky, but avoids a
+    #   bunch of annoying work with grep/sed/whatever (including MacOS
+    #   compatibility).
+    echo "with-compiler: $path" >> "$conffile"
+}
 
 #   Run the `cabal` selected for this project, using selected verbosity.
 pcabal() {
@@ -261,8 +275,7 @@ set_find_ghc() {
         echo -n 'Version: '
         "$ghc_requested" --numeric-version \
             || die 2 "Reqested GHC failed: $ghc_requested"
-        pcabal configure --enable-append --disable-backup \
-            --with-compiler "$ghc_requested"
+        set_with_compiler "$ghc_requested"
     fi
     vecho 1 "• Using $(grep '^with-compiler:' $PROJDIR/cabal.project.local)"
 }
@@ -285,8 +298,7 @@ find_ghc() {
         local ghcpath="$ghcup_bin/ghc-$ver"
         vecho 1 "• Trying $ghcpath"
         "$ghcpath" --numeric-version >/dev/null 2>&1 || continue
-        pcabal configure --enable-append --disable-backup \
-            --with-compiler "$ghcpath"
+        set_with_compiler "$ghcpath"
         return 0
     done
     die 3 'Cannot find a GHC version. Install one with ghcup or use the -G option.'
@@ -387,12 +399,11 @@ mkdir -p "$TOOLBIN"; PATH="$TOOLBIN:$PATH"
 #   Main
 
 echo '━━━━━ Development Tools'
-install_z3
-install_hpack
-build_hpack
 install_cabal
 set_find_ghc
+install_hpack; build_hpack
 install_ghc_core
+install_z3
 
 echo '━━━━━ Build (this may take some time)'
 cd "$PROJDIR"
