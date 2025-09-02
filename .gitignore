@@ -4,6 +4,8 @@
 #   Cabal builds.
 /cabal.project.local
 /cabal.project.local~
+#   Created by Cabal ≥3.12 (probably). This cannot be moved because
+#   information in it is used to be figure out where Cabal's paths go.
 /dist-newstyle/
 
 #   HPack generates our *.cabal files.
