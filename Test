@@ -4,6 +4,13 @@ set -Eeuo pipefail
 trap 'ec=$?; echo 1>&2 "INTERNAL ERROR: ec=$ec line=$LINENO cmd=$BASH_COMMAND";
       exit $ec;' ERR
 
+minbash() {
+    local major="$1"; shift
+    local minor="$1"; shift
+    [[ ${BASH_VERSINFO[0]} -gt $major ]] && return 0
+    [[ ${BASH_VERSINFO[0]} -eq $major && ${BASH_VERSINFO[1]} -ge $minor ]]
+}
+
 elapsed_start=$(date +%s%2N)   # 10s of milliseconds since the epoch
 elapsed() {                    # fractional seconds (2 places) since start
     local msx10=$(( $(date +%s%2N) - $elapsed_start ))
@@ -20,7 +27,7 @@ fail() {
 warn()  { echo 1>&2 'Warning:' "$@"; }
 vecho() {
     minlevel="$1"; shift
-    declare -g verbosity
+    minbash 4 2 && declare -g verbosity
     [[ $verbosity -ge $minlevel ]] || return 0
     echo "$@"
 }
@@ -149,7 +156,7 @@ install_hpack() {
 #   Set $ghcup_bin to the location where `ghcup`'s bin directory should
 #   be based on the environment. (We do not confirm that it exists.)
 set_ghcup_bin() {
-    declare -g ghcup_bin
+    minbash 4 2 && declare -g ghcup_bin
     if [[ -n ${GHCUP_USE_XDG_DIRS:-} ]]; then
         ghcup_bin=${XDG_BIN_HOME:-$HOME/.local/bin}
     elif [[ -n ${GHCUP_INSTALL_BASE_PREFIX:-} ]]; then
@@ -217,7 +224,7 @@ install_cabal() {
 }
 
 set_find_ghc() {
-    declare -g ghc_requested
+    minbash 4 2 && declare -g ghc_requested
     vecho 1 '───── Finding/setting ghc'
     if [[ -z $ghc_requested ]]; then
         find_ghc
