@@ -182,20 +182,31 @@ set_ghcup_bin() {
 #   set there, or the highest version available.
 install_cabal() {
     vecho 1 '───── Finding cabal'
+
+    #   Once there's a cabal link or binary in $TOOLBIN/, we always use
+    #   that. (It was either previously found by us or created by the
+    #   developer who wants to use a specific version.)
     [[ -f $TOOLBIN/cabal ]] && return 0
 
-    #   Cabal 3.12 is when we get Nix-style sandboxed-builds[1], so we
-    #   prefer to use at least that version. Earlier versions will end
-    #   up doing full rebuilds from what later versions did.
-    #   (XXX Explain this better. Are the older vers using global object dirs?)
+    #   We warn if we're using Cabal less than $minver, but go ahead
+    #   anyway. Earlier versions of Cabal do work, but 3.12 is when we get
+    #   Nix-style sandboxed-builds[1], so we prefer to use at least that
+    #   version. (Note that earlier versions will not re-use build products
+    #   from later versions, presumably because the build product locations
+    #   are different.)
     #   [1]: https://cabal.readthedocs.io/en/3.12/how-to-build-like-nix.html
-    local  minver=3.12      # Warn if cabal we use is less than this version.
+    local  minver=3.12
 
-    #   Note that we do *not* use "$ghcup_bin/cabal" since while it's in
-    #   theory the version of cabal that the devleoper prefers, in practice
-    #   it's whatever was last installed (maybe even a version with
-    #   security vulnerabilities!).[1] This can always be overridden by
-    #   hand by manually making a link in $TOOLBIN/.
+    #   Since any version of Cabal should work, but we prefer newer ones,
+    #   we default to the latest version installed via ghcup if any are
+    #   available, otherwise try for a `cabal` in $PATH.
+    #     Whatever's in the path (including $ghcup_bin/cabal, if that's in
+    #   the path) is in theory what the developer prefers, but we do not
+    #   default to that because many developers will have $ghcup_bin/cabal
+    #   in their path and this is not necessarily what they want because
+    #   a `ghcup install cabal` will immediately change the current version
+    #   to the newly installed version (maybe even a version with
+    #   security vulnerabilities!).[1]
     #   [1]: https://github.com/haskell/ghcup-hs/issues/1281
     #
     #   The `find` below doesn't do a proper numeric sort, but it produces
@@ -204,10 +215,10 @@ install_cabal() {
     local exe
     vecho 1 -n "• Trying"
     for exe in                      \
-        cabal                       \
         $([[ -d $ghcup_bin ]]       \
             && find "$ghcup_bin" -name cabal-\* \
             | sort -r) \
+        cabal                       \
     ; do
         vecho 1 -n " $(prettypath "$exe")"
         "$exe" --numeric-version >/dev/null 2>&1 || continue
