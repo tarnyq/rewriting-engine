@@ -21,7 +21,7 @@ module KTutImp
     , eval_sum
     ) where
 
-import Prelude hiding (negate, div)
+import Prelude hiding (negate, div, print)
 import qualified Prelude (div)
 import Data.Map (Map, findWithDefault, fromList, insert, member)
 
@@ -70,6 +70,7 @@ data Stmts  = Block Block
             | If BExp Block Block
             | While BExp Block
             | StPair Stmts Stmts
+            | Print AExp
 
 data Pgm    = Pgm Ids Stmts
 type Ids    = [Id]
@@ -384,6 +385,15 @@ emptyBlock :: MonadRewrite r K => r K ()
 emptyBlock = do ((KI_Stmts (Block EmptyBlock)):rest) <- get
                 put rest
 
+
+------------------------------------------------------------------------
+
+class Monad m => Console m where
+  print :: String -> m ()
+
+print_ :: (Console (r Stmts), MonadRewrite r Stmts) => r Stmts ()
+print_ = do (Print (Int i)) <- get
+            print (show i)
 
 ----------------------------------------------------------------------
 --  Sample programs to test syntax and semantics.
