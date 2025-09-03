@@ -81,7 +81,8 @@ die()  { ec="$1"; shift; echo 1>&2 -e "ERROR ($ec):" "$@"; exit $ec; }
 #   Echo the path to the `gcc` executable we're using.
 #   (Echos nothing if not not set with e.g. set_with_compiler().)
 with_compiler() {
-    sed -n -e 's/^with-compiler: //p' "$PROJDIR/cabal.project.local"
+    sed -n -e 's/^with-compiler: //p' "$PROJDIR/cabal.project.local" \
+        | tail -n 1
 }
 
 #   Set the path to the `gcc` executable to be used by the project.
