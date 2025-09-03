@@ -4,6 +4,11 @@ set -Eeuo pipefail
 trap 'ec=$?; echo 1>&2 "INTERNAL ERROR: ec=$ec line=$LINENO cmd=$BASH_COMMAND";
       exit $ec;' ERR
 
+####################################################################
+#   Utility functions.
+
+#   `minbash M n command`: Execute _command_ only if the Bash version
+#   is ≥ M.n. Because e.g. MacOS uses Bash 3.2. (Latest is 5.2 or above.)
 minbash() {
     local major="$1"; shift
     local minor="$1"; shift
@@ -11,43 +16,23 @@ minbash() {
     [[ ${BASH_VERSINFO[0]} -eq $major && ${BASH_VERSINFO[1]} -ge $minor ]]
 }
 
-####################################################################
-#   Utility functions.
-
+#   Track time taken by this script.
+#   Used to display, at end, time taken for build run.
 elapsed_start=$(date +%s%2N)   # 10s of milliseconds since the epoch
 elapsed() {                    # fractional seconds (2 places) since start
     local msx10=$(( $(date +%s%2N) - $elapsed_start ))
     echo "$(($msx10/100)).$(($msx10%100))"
 }
 
-die()  { ec="$1"; shift; echo 1>&2 -e "ERROR ($ec):" "$@"; exit $ec; }
-fail() {
-    ec=$?
-    [[ -n $@ ]] && echo 1>&2 "$@"
-    echo 1>&2 "FAILED exitcode=$ec ($(elapsed)s)"
-    exit $ec
-}
-warn()  { echo 1>&2 'Warning:' "$@"; }
-vecho() {
-    minlevel="$1"; shift
-    minbash 4 2 && declare -g verbosity
-    [[ $verbosity -ge $minlevel ]] || return 0
-    echo "$@"
-}
-
-#   Replace well-known path prefixes with a much shorter version.
-prettypath() {
-    local path="$1"; shift
-    path=${path/#$ghcup_bin\//ghcup:}
-    path=${path/#$HOME/\~}
-    echo "$path"
-}
-
+#   `since_timestamp file secs command`: If _file_ exists and is not at
+#   least _secs_ old, do nothing. Otherwise touch _file_ (to ensure it
+#   exists and has the current timestamp) and execute _command_
+#   • Currently unused, but may be useful again.
 since_timestamp() {
-    local tsdir="$BUILDDIR/timestamp"
     local stampfile="$1"; shift
     local seconds="$1"; shift
-    [ "${seconds}" -gt 0 ]  # bad arg generates internal error
+    local tsdir="$BUILDDIR/timestamp"
+    [ "${seconds}" -gt 0 ]      # bad arg generates internal error
     mkdir -p "$tsdir"
     local last_time=$(stat -c %Y "$tsdir/$stampfile" 2>/dev/null || true)
     [[ $(($last_time + $seconds)) -gt $(date +%s) ]] && return
@@ -57,49 +42,49 @@ since_timestamp() {
 }
 
 ####################################################################
-#   Build System Usage
+#   Messages and failure.
 
-#   Removes pretty much everything, to start with a fully clean build.
-#   This includes our detected development toolchain. It does not include
-#   "common" build products of Hackage downloads that are shared amongst
-#   all projects.
-clean_large() {
-    clean_small             # clean_small() covers things not below.
-    local cleantrees=(
-        "$BUILDDIR"         # This will re-select the build tools as well.
-        "$PROJDIR"/cabal.project.local
-        "$PROJDIR"/cabal.project.local~
-    )
-    rm -rf "${cleantrees[@]}"
+#   Echo the given path, replacing well-known path prefixes ($HOME,
+#   …/.ghcup/bin/, etc.) with a much shorter version.
+prettypath() {
+    local path="$1"; shift
+    path=${path/#$ghcup_bin\//ghcup:}
+    path=${path/#$HOME/\~}
+    echo "$path"
 }
 
-clean_small() {
-    #   .gitignore has, where necessary, comments detailing what these do
-    #   and special cirumstances about them.
-    local cleantrees=(
-        "$BUILDDIR"/timestamps/
-        "$PROJDIR"/dist-newstyle/
-        "$PROJDIR"/*.cabal
-        #   We don't clean .build/ghc-core/*.core on a "small" clean
-        #   because this doesn't affect future builds at all, and
-        #   regenerating them can be a pain.
-        "$BUILDDIR"/ghc-core/obj/
-        #   We keep this here instead of putting it under .build/ because
-        #   we expect stand-alone `stack` invocations which will look for
-        #   it only here.
-        "$PROJDIR"/.stack-work/
-        "$PROJDIR"/stack.yaml.lock
-        #   It's not clear how to move this to a build directory.
-        "$PROJDIR/src/.liquid/"
-        "$PROJDIR/src/experiment/.liquid/"
-    )
-    rm -rf "${cleantrees[@]}"
+#   `vecho n message`: Print _message_ only if the verbosisity level is ≥ _n_.
+vecho() {
+    minlevel="$1"; shift
+    minbash 4 2 && declare -g verbosity
+    [[ $verbosity -ge $minlevel ]] || return 0
+    echo "$@"
 }
 
-#   Return the path to the `gcc` executable we're using.
+warn()  { echo 1>&2 'Warning:' "$@"; }
+
+#   `… || fail [message]`: Fail the build, printing _message_ if present
+#   and exiting with the most recent exit code.
+fail() {
+    ec=$?
+    [[ -n $@ ]] && echo 1>&2 "$@"
+    echo 1>&2 "FAILED exitcode=$ec ($(elapsed)s)"
+    exit $ec
+}
+
+#   `die n message`: Print _message_ and exit with exit code _n_.
+die()  { ec="$1"; shift; echo 1>&2 -e "ERROR ($ec):" "$@"; exit $ec; }
+
+####################################################################
+#   Build system utility routines.
+
+#   Echo the path to the `gcc` executable we're using.
+#   (Echos nothing if not not set with e.g. set_with_compiler().)
 with_compiler() {
     sed -n -e 's/^with-compiler: //p' "$PROJDIR/cabal.project.local"
 }
+
+#   Set the path to the `gcc` executable to be used by the project.
 #
 #   `cabal configure --enable-append --disable-backup --with-compiler`
 #   will not work if a *.cabal file does not exist. The easiest work-around
@@ -113,6 +98,7 @@ set_with_compiler() {
     #   bunch of annoying work with grep/sed/whatever (including MacOS
     #   compatibility).
     echo "with-compiler: $path" >> "$conffile"
+    vecho 0 "• Using $(with_compiler)"
 }
 
 #   Run the `cabal` selected for this project, using selected verbosity.
@@ -130,6 +116,7 @@ pcabal() {
 }
 
 ####################################################################
+#   Toolchain discovery and installation.
 
 #   We don't currently use Stack, but we keep there here for the moment
 #   in case it makes sense to start supporting it again later. (We hope
@@ -265,7 +252,7 @@ install_cabal() {
     die 3 'Cannot find a `cabal` executable. Install one with ghcup?\n\tSee https://www.haskell.org/ghcup/'
 }
 
-set_find_ghc() {
+set_or_find_ghc() {
     minbash 4 2 && declare -g ghc_requested
     vecho 1 '───── Finding/setting ghc'
     if [[ -z $ghc_requested ]]; then
@@ -277,7 +264,6 @@ set_find_ghc() {
             || die 2 "Reqested GHC failed: $ghc_requested"
         set_with_compiler "$ghc_requested"
     fi
-    vecho 1 "• Using $(grep '^with-compiler:' $PROJDIR/cabal.project.local)"
 }
 
 #   Unlike Cabal, where pretty much any version will work, only specific
@@ -289,12 +275,12 @@ find_ghc() {
         vecho 1 "• Found 'with-compiler' setting in cabal.project.local"
         return 0
     }
+    minbash 4 2 && declare -g ghc_prefvers
 
-    local prefvers=(9.10.2  9.10.1  9.8.2)  # XXX add 9.12.2
     #   XXX exit if we already have a preferred version in
     #   cabal.project.local.
     local ver
-    for ver in "${prefvers[@]}"; do
+    for ver in "${ghc_prefvers[@]}"; do
         local ghcpath="$ghcup_bin/ghc-$ver"
         vecho 1 "• Trying $ghcpath"
         "$ghcpath" --numeric-version >/dev/null 2>&1 || continue
@@ -333,6 +319,44 @@ install_ghc_core() {
 }
 
 ####################################################################
+#   Build subroutines.
+
+clean_small() {
+    #   .gitignore has, where necessary, comments detailing what these do
+    #   and special cirumstances about them.
+    local cleantrees=(
+        "$BUILDDIR"/timestamps/
+        "$PROJDIR"/dist-newstyle/
+        "$PROJDIR"/*.cabal
+        #   We don't clean .build/ghc-core/*.core on a "small" clean
+        #   because this doesn't affect future builds at all, and
+        #   regenerating them can be a pain.
+        "$BUILDDIR"/ghc-core/obj/
+        #   We keep this here instead of putting it under .build/ because
+        #   we expect stand-alone `stack` invocations which will look for
+        #   it only here.
+        "$PROJDIR"/.stack-work/
+        "$PROJDIR"/stack.yaml.lock
+        #   It's not clear how to move this to a build directory.
+        "$PROJDIR/src/.liquid/"
+        "$PROJDIR/src/experiment/.liquid/"
+    )
+    rm -rf "${cleantrees[@]}"
+}
+
+#   Removes pretty much everything, to start with a fully clean build.
+#   This includes our detected development toolchain. It does not include
+#   "common" build products of Hackage downloads that are shared amongst
+#   all projects.
+clean_large() {
+    clean_small             # clean_small() covers things not below.
+    local cleantrees=(
+        "$BUILDDIR"         # This will re-select the build tools as well.
+        "$PROJDIR"/cabal.project.local
+        "$PROJDIR"/cabal.project.local~
+    )
+    rm -rf "${cleantrees[@]}"
+}
 
 build_hpack() {
     vecho 1 '───── Generating .cabal files from HPack project.yaml'
@@ -367,7 +391,13 @@ generate_ghc_core() { (
 ) }
 
 ####################################################################
-#   Environment setup and argument Parsing
+#   Environment setup and argument parsing.
+
+#   Because we use Liquid Haskell, only certain versions of GHC will work.
+#   All the ones in this list have been confirmed to work. GHC discovery
+#   will use only these versions, though you can try to use others with
+#   the `-G <path>` option.
+ghc_prefvers=(9.10.2  9.10.1  9.8.2)  # XXX add 9.12.2
 
 export PROJDIR=$(cd "$(dirname "$0")" && pwd -P)
 export BUILDDIR="$PROJDIR/.build"
@@ -396,11 +426,11 @@ esac; done
 mkdir -p "$TOOLBIN"; PATH="$TOOLBIN:$PATH"
 
 ####################################################################
-#   Main
+#   Main.
 
 echo '━━━━━ Development Tools'
 install_cabal
-set_find_ghc
+set_or_find_ghc
 install_hpack; build_hpack
 install_ghc_core
 install_z3
