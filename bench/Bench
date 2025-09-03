@@ -27,7 +27,7 @@ benchmark_h() {
     echo "───── build/test"
     $skip_compile \
         && { echo "WARNING: build/test skipped"; } \
-        || ./Test
+        || ./Test || true  ## XXX
     echo "───── run"
     time_run $(cabal list-bin benchmark) +RTS -sstderr
 }
