@@ -82,9 +82,12 @@ instance MonadRewrite RewriteM s where
                                 pure a
              Nothing      -> matchFail
 
+
 --- Rewrite rules may only update the State
 type Rewrite s = RewriteM s ()
 
+applyRewrite :: Rewrite s -> s -> Maybe s
+applyRewrite r = (fmap snd) . (getFun r)
 
 {-  The functions below are (nearly) forced always to be inlined because
     we use INLINE instead of INLINABLE; GHC is not eager enough to inline
@@ -103,22 +106,21 @@ type Rewrite s = RewriteM s ()
 -- Return the terminal state of one path through the execution tree using
 -- first-match evaluation.
 evalOnePath :: forall s. [Rewrite s] -> s -> s
-evalOnePath rewrites state = eval' state (next state)  where
-    -- Given the current state and the next state/no-state:
-    eval' :: s -> Maybe s -> s
-    eval' s Nothing   = s                   -- terminal state: done
-    eval' _ (Just s') = eval' s' (next s')  -- non-terminal, continue stepping
+evalOnePath rewrites state = unwrap $ applyRewrite eval' state
+  where
+    eval' :: Rewrite s
+    eval' =     (next >> eval') -- If next succeeds, recurse
+            <|> pure ()         -- otherwise return the previous state
 
-    -- The next state is from the first rule in [Rewrite s] that matches,
-    -- or Nothing if no rules match.
-    next :: s -> Maybe s
-    next = unwrapRewrite $ foldr (<|>) matchFail rewrites
-
-    unwrapRewrite :: Rewrite a -> (a -> Maybe a)
-    unwrapRewrite rw = (fmap snd) . (getFun rw)
-
+    next :: Rewrite s
+    next = foldr (<|>) matchFail rewrites
     --  Mystery! foldr1 is 1/3 the speed of foldr above.
-    --next = unwrapRewrite $ foldr1 orElse rewrites
+    --next = foldr1 orElse rewrites
+
+    unwrap :: Maybe a -> a
+    unwrap (Just a) = a
+    unwrap Nothing = undefined -- unreachable
+
 
 ------------------------------------------------------------------------
 --  All path evaluation
