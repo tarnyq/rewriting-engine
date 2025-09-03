@@ -5,7 +5,8 @@ module Tarnyq
         MonadRewrite, Rewrite,
         get, put, guard, matchFail,
         mkLift,
-        evalOnePath, evalAllPaths
+        evalOnePath, evalAllPaths,
+        Console, printConsole
     )
   where
 
@@ -35,6 +36,9 @@ class MonadFail (r s) => MonadRewrite r s where
 
   {-# MINIMAL get, put, matchFail, mkLift #-}
 
+class Monad m => Console m where
+  printConsole :: String -> m ()
+
 
 ----------------------------------------------------------------------
 --  RewriteM represents a *possible* transition over a state.
@@ -46,11 +50,11 @@ class MonadFail (r s) => MonadRewrite r s where
 --  is possible for the action to not "match", returning a Nothing.
 --  This lets us try multiple rewrites in parallel until one succeeds.
 
-newtype RewriteM s a = RewriteM { getFun :: s -> Maybe (a, s) }
+newtype RewriteM s a = RewriteM { getFun :: s -> Maybe (a, s, [String]) }
     deriving Functor
 
 instance Applicative (RewriteM s) where
-    pure x = RewriteM (\s -> Just (x, s))
+    pure x = RewriteM (\s -> Just (x, s, []))
     (<*>) = ap
 
 -- Alternative allows *parallel* composition of Rewrites--i.e.
@@ -62,32 +66,43 @@ instance Alternative (RewriteM s) where
 
 instance Monad (RewriteM s) where
     p >>= q = RewriteM $
-        \s -> do (a', s') <- ((getFun p) s)
-                 ((getFun $ q a') s')
+        \s -> do (aP, sP, outputP) <- ((getFun p) s)
+                 (aQ, sQ, outputQ) <- ((getFun $ q aP) sP)
+                 pure (aQ, sQ, outputQ ++ outputP)
+
+
 
 -- MonadFail allows us to have binding patterns that fail in do notation.
 instance MonadFail (RewriteM s) where
     fail _ = RewriteM $ \_ -> Nothing
 
 instance MonadRewrite RewriteM s where
-    get   = RewriteM $ \s -> Just (s, s)
-    put s = RewriteM $ \_ -> Just ((), s)
+    get   = RewriteM $ \s -> Just (s, s, [])
+    put s = RewriteM $ \_ -> Just ((), s, [])
     matchFail = RewriteM $ \_ -> Nothing
 
     {-# INLINE mkLift #-}
     mkLift unplug plug rw
       = do Just (p, ctx) <- fmap unplug get
            case (getFun rw) p of
-             Just (a, p') -> do put $ plug p' ctx
-                                pure a
-             Nothing      -> matchFail
+             Just (a, p', output) -> RewriteM $ \_ -> Just (a, plug p' ctx, output)
+             Nothing              -> matchFail
 
 
 --- Rewrite rules may only update the State
 type Rewrite s = RewriteM s ()
 
-applyRewrite :: Rewrite s -> s -> Maybe s
-applyRewrite r = (fmap snd) . (getFun r)
+applyRewrite :: Rewrite s -> s -> Maybe (s, [String])
+applyRewrite r = (fmap dropFirst) . (getFun r)  where
+    dropFirst (_, b, c) = (b, c)
+
+------------------------------------------------------------------------
+
+instance Console (RewriteM s) where
+    printConsole str = RewriteM $ \s -> Just ((), s, [str])
+
+putOutput :: [String] -> RewriteM s ()
+putOutput output = RewriteM $ \s -> Just ((), s, output)
 
 {-  The functions below are (nearly) forced always to be inlined because
     we use INLINE instead of INLINABLE; GHC is not eager enough to inline
@@ -105,7 +120,7 @@ applyRewrite r = (fmap snd) . (getFun r)
 {-# INLINE evalOnePath #-}
 -- Return the terminal state of one path through the execution tree using
 -- first-match evaluation.
-evalOnePath :: forall s. [Rewrite s] -> s -> s
+evalOnePath :: forall s. [Rewrite s] -> s -> (s, [String])
 evalOnePath rewrites state = unwrap $ applyRewrite eval' state
   where
     eval' :: Rewrite s
@@ -125,7 +140,7 @@ evalOnePath rewrites state = unwrap $ applyRewrite eval' state
 
 -- Return all terminal states (leaves of an execution tree) using
 -- depth-first evaluation.
-evalAllPaths :: forall s. [Rewrite s] -> s -> [s]
+evalAllPaths :: forall s. [Rewrite s] -> s -> [(s, [String])]
 evalAllPaths rws s = [evalOnePath rws s]
 -- evalAllPaths rewrites s = eval' [s] (next s) where
 -- 

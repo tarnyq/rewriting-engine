@@ -7,7 +7,7 @@ import NonDet
 
 tests :: TestTree
 tests = testGroup "NonDet Tests"
-  [ testCase "eval"     $ (eval_nondet      A) @?= B
-  , testCase "evalrev"  $ (evalRev_nondet   A) @?= C
-  , testCase "evalAP"   $ (evalAP_nondet    A) @?= [B, C]
+  [ testCase "eval"     $ (eval_nondet      A) @?= (B, [])
+  , testCase "evalrev"  $ (evalRev_nondet   A) @?= (C, [])
+  , testCase "evalAP"   $ (evalAP_nondet    A) @?= [(B, []), (C, [])]
   ]
