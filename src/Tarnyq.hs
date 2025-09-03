@@ -113,9 +113,7 @@ evalOnePath rewrites state = unwrap $ applyRewrite eval' state
             <|> pure ()         -- otherwise return the previous state
 
     next :: Rewrite s
-    next = foldr (<|>) matchFail rewrites
-    --  Mystery! foldr1 is 1/3 the speed of foldr above.
-    --next = foldr1 orElse rewrites
+    next = asum rewrites -- Choose first rewrite that applies
 
     unwrap :: Maybe a -> a
     unwrap (Just a) = a
