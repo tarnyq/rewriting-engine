@@ -398,7 +398,10 @@ generate_ghc_core() { (
 #   All the ones in this list have been confirmed to work. GHC discovery
 #   will use only these versions, though you can try to use others with
 #   the `-G <path>` option.
-ghc_prefvers=(9.10.2  9.10.1  9.8.2)  # XXX add 9.12.2
+#   • We do not have 9.12.1 in the list because it has a `mod` bug:
+#     https://gitlab.haskell.org/ghc/ghc/-/issues/25653
+#   • LH w/9.6: Confirmed not working: 9.6.{7,6}. Untested: 9.6.{5,4}.
+ghc_prefvers=( 9.12.2  9.10.2  9.10.1  9.8.2  9.6.7  9.6.3 )
 
 export PROJDIR=$(cd "$(dirname "$0")" && pwd -P)
 export BUILDDIR="$PROJDIR/.build"
