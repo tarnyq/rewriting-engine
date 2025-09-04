@@ -159,19 +159,22 @@ install_stack() {
 #   [1]: https://raw.githubusercontent.com/sol/hpack/main/get-hpack.sh
 #
 install_hpack() {
-    local platform='Linux x86_64'
-
-    vecho 1 "───── Checking HPack for $platform"
-    [[ -x $TOOLBIN/hpack ]] && return 0
-
-    echo "───── Installing HPack for $platform"
-    [[ $platform = $(uname -sm) ]] || die 9 \
-        "install_hpack() supports only $platform, not $(uname -sm)"
-    #   XXX We don't even bother to look up the latest version; we just
-    #   download a fixed one, and update by hand when necessary.
-    url='https://github.com/sol/hpack/releases/download/0.38.2/hpack_linux.gz'
-    curl -sSL "$url" | gunzip > "$TOOLBIN/hpack"
-    chmod +x "$TOOLBIN/hpack"
+    local exe="$TOOLBIN/hpack"
+    local bsdir="$BUILDDIR/bootstrap/hpack"
+    vecho 1 '───── Finding/building hpack'
+    [[ -x $exe ]] && {
+        vecho 1 "• Using existing $(prettypath "$exe")"; return 0; }
+    vecho 1 "• Building/installing $(prettypath "$exe")"
+    #   Without a .cabal file, we must be in a directory with no explicit
+    #   configuration (i.e., no cabal.project* files) or cabal will
+    #   complain. So we create an empty directory and run cabal from there,
+    #   using the --with-compiler option instead of a cabal.project.local
+    #   file.
+    rm -rf "$bsdir"; mkdir -p "$bsdir"
+  ( cd "$bsdir"
+    pcabal install hpack --with-compiler="$(with_compiler)" \
+        --installdir="$(dirname "$exe")"
+  )
 }
 
 #   Set $ghcup_bin to the location where `ghcup`'s bin directory should
@@ -361,7 +364,7 @@ clean_large() {
     rm -rf "${cleantrees[@]}"
 }
 
-build_hpack() {
+build_cabal_files() {
     vecho 1 '───── Generating .cabal files from HPack project.yaml'
     local silent=--silent
     [[ $verbosity -gt 0 ]] && silent=
@@ -438,7 +441,7 @@ echo '━━━━━ Development Tools'
 install_cabal
 since_timestamp cabal-update $((24*60*60)) pcabal update
 set_or_find_ghc
-install_hpack; build_hpack
+install_hpack; build_cabal_files
 install_ghc_core
 install_z3
 
