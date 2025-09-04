@@ -4,7 +4,6 @@ module Tarnyq
     (   RewriteM(..),
         MonadRewrite, Rewrite,
         get, put, guard, matchFail,
-        mkLift,
         evalOnePath, evalAllPaths
     )
   where
@@ -20,21 +19,11 @@ class MonadFail (r s) => MonadRewrite r s where
   matchFail :: r s a
   put   :: s -> r s ()
 
-  -- "Contexts" may be defined using two functions: "unplug", that pulls a
-  -- subterm (called the plug (noun)) out of a larger term, and
-  -- "plug", that puts it back in.
-  -- The "unplug" function is more general than a projection function
-  -- (e.g. fst, snd) that similarly pull subterms out of terms, in that it may
-  -- fail e.g. due to pattern matching failing.
-  -- For any context, we may lift rewrites on the subterm's type
-  -- to the context's type.
-  mkLift :: (s -> Maybe (p, c)) -> (p -> c -> s) -> (r p a -> r s a)
-
   guard :: Bool -> r s ()
   guard True  = pure ()
   guard False = matchFail
 
-  {-# MINIMAL get, put, matchFail, mkLift #-}
+  {-# MINIMAL get, put, matchFail #-}
 
 
 ----------------------------------------------------------------------
@@ -74,15 +63,6 @@ instance MonadRewrite RewriteM s where
     get   = RewriteM $ \s -> Just (s, s)
     put s = RewriteM $ \_ -> Just ((), s)
     matchFail = RewriteM $ \_ -> Nothing
-
-    {-# INLINE mkLift #-}
-    mkLift unplug plug rw
-      = do Just (p, ctx) <- fmap unplug get
-           case (getFun rw) p of
-             Just (a, p') -> do put $ plug p' ctx
-                                pure a
-             Nothing      -> matchFail
-
 
 --- Rewrite rules may only update the State
 type Rewrite s = RewriteM s ()
