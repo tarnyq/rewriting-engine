@@ -12,6 +12,7 @@ module Tarnyq
 
 import Control.Monad (ap)
 import Control.Applicative
+import Data.Maybe
 
 
 -- TODO Require MonadPlus so we can use its guard.
@@ -131,8 +132,7 @@ evalOnePath rewrites state = unwrap $ applyRewrite eval' state
     next = asum rewrites -- Choose first rewrite that applies
 
     unwrap :: Maybe a -> a
-    unwrap (Just a) = a
-    unwrap Nothing = undefined -- unreachable
+    unwrap = fromMaybe undefined -- always returns a Just.
 
 
 ------------------------------------------------------------------------
