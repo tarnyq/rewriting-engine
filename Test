@@ -121,6 +121,33 @@ pcabal() {
 ####################################################################
 #   Toolchain discovery and installation.
 
+#   The Linux distro or whatever your OS is is expected to provide certain
+#   common packages and programs; this deals with checking for all of them.
+#   It will also try to do the install (which requires sudo) if we're on
+#   a Debian-based system (i.e., one using `apt`).
+install_syspkgs() {
+    vecho 1 '───── System packages check/install'
+
+    local r=()      # required packages that are missing.
+    #   We use pkgconf here to check for the existence of libraries.
+    >/dev/null 2>&1 pkgconf --version       || r+=(pkgconf)
+    #   GHC and common Hackage libraries need the following.
+    >/dev/null 2>&1 gcc --version           || r+=(build-essential)
+    >/dev/null 2>&1 pkg-config gmp          || r+=(libgmp-dev)
+    >/dev/null 2>&1 pkg-config zlib         || r+=(zlib1g-dev)
+    >/dev/null 2>&1 pcre-config --version   || r+=(libpcre3-dev) # ghc-core
+    #   Liquid Haskell needs an SMT solver; we use Z3 as suggested, in part
+    #   because it's widely available in many Linux distros. But there are
+    #   issues with different versions being not quite right; we may want
+    #   just to build this ourselves.
+    >/dev/null 2>&1 z3 --version            || r+=(z3)
+
+    [[ ${#r[@]} -eq 0 ]] && return
+    echo '• Missing system packages:' "${r[@]}"
+    sudo apt-get -q install -y "${r[@]}" \
+        || die 3 "Unable to 'apt-get install' missing packages.\n  Try your distro or OS install tool."
+}
+
 #   We don't currently use Stack, but we keep there here for the moment
 #   in case it makes sense to start supporting it again later. (We hope
 #   it won't.) If we re-introduce this, we will also have to add back or
@@ -296,31 +323,10 @@ find_ghc() {
     die 3 'Cannot find a GHC version. Install one with ghcup or use the -G option.'
 }
 
-#   Liquid Haskell needs an SMT solver; we use Z3 as suggested, in part
-#   because it's widely available in many Linux distros. But there are
-#   issues with different versions being not quite right; we may want
-#   just to build this ourselves.
-install_z3() {
-    vecho 1 '───── Checking Z3'
-    z3 --version >/dev/null 2>&1 || {
-    echo '───── Installing Z3'
-    sudo apt install z3 \
-        || die 3 'Cannot `apt install z3`; try your own package manager?'
-    }
-}
-
 install_ghc_core() {
     vecho 1 '───── Checking for ghc-core executable'
     pcabal exec -- ghc-core --help >/dev/null 2>&1 && return 0
-
     vecho 0 '───── Building/installing ghc-core'
-    pcre-config --version >/dev/null 2>&1 || {
-        echo '───── Installing libpcre3-dev'
-        #   XXX Seems this wants to produce two dozen or more lines of output
-        #   no matter what we do to try to make it quiet.
-        sudo apt -q -q -qq install -y -q -q -qq libpcre3-dev \
-            || die 3 'Cannot `apt install libpcre3-dev`; try your own package manager?'
-    }
     pcabal install ghc-core --installdir="$TOOLBIN" || fail
 }
 
@@ -438,12 +444,12 @@ mkdir -p "$TOOLBIN"; PATH="$TOOLBIN:$PATH"
 #   Main.
 
 echo '━━━━━ Development Tools'
+install_syspkgs
 install_cabal
 since_timestamp cabal-update $((24*60*60)) pcabal update
 set_or_find_ghc
 install_hpack; build_cabal_files
 install_ghc_core
-install_z3
 
 echo '━━━━━ Build (this may take some time)'
 cd "$PROJDIR"
