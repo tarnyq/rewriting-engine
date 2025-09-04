@@ -37,7 +37,8 @@ since_timestamp() {
     local last_time=$(stat -c %Y "$tsdir/$stampfile" 2>/dev/null || true)
     [[ $(($last_time + $seconds)) -gt $(date +%s) ]] && return
     touch "$tsdir/$stampfile"
-    echo "$@"
+    vecho 1 "───── Timestamp $stampfile expired"
+    vecho 1 '•' "$@"
     "$@"
 }
 
@@ -435,6 +436,7 @@ mkdir -p "$TOOLBIN"; PATH="$TOOLBIN:$PATH"
 
 echo '━━━━━ Development Tools'
 install_cabal
+since_timestamp cabal-update $((24*60*60)) pcabal update
 set_or_find_ghc
 install_hpack; build_hpack
 install_ghc_core
