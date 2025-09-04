@@ -16,11 +16,11 @@ nondet = [aToB, aToC] where
     aToC = do A <- get
               put C
 
-eval_nondet :: State -> (State, [String])
+eval_nondet :: State -> State
 eval_nondet = evalOnePath nondet
 
-evalRev_nondet :: State -> (State, [String])
+evalRev_nondet :: State -> State
 evalRev_nondet = evalOnePath $ reverse nondet
 
-evalAP_nondet :: State -> [(State, [String])]
+evalAP_nondet :: State -> [State]
 evalAP_nondet = evalAllPaths nondet

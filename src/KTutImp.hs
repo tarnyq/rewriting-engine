@@ -194,7 +194,7 @@ isBool _       = False
 -- Semantics
 -- If this is expanded in other files, it may lose the inlining
 -- unless 'imp' is marked INLINE.
-eval_imp :: Pgm -> (State, [String])
+eval_imp :: Pgm -> State
 eval_imp pgm = evalOnePath imp $ impInitState pgm
 
 
@@ -202,9 +202,7 @@ eval_imp pgm = evalOnePath imp $ impInitState pgm
 -- Rules
 
 imp :: (MonadRewrite r State, MonadRewrite r Store, MonadRewrite r K,
-        MonadRewrite r Stmts, MonadRewrite r AExp, MonadRewrite r BExp,
-        Console (r K)
-       )
+        MonadRewrite r Stmts, MonadRewrite r AExp, MonadRewrite r BExp)
        =>  [r State ()]
 imp =   [ liftK     assignHeat
         , liftK     assignCool
@@ -237,9 +235,6 @@ imp =   [ liftK     assignHeat
         , liftAExp  negate
         , liftStmts block
         , liftK     emptyBlock
-        , liftK     printHeat
-        , liftK     printCool
-        , liftK     print_
         ]
 
 seqStmt :: MonadRewrite r K => r K ()
@@ -391,19 +386,14 @@ emptyBlock = do ((KI_Stmts (Block EmptyBlock)):rest) <- get
                 put rest
 
 
-printHeat :: MonadRewrite r K => r K ()
-printHeat = do ((KI_Stmts (Print exp)):rest) <- get
-               guard $ not (isInt exp)
-               put $ (KI_AExp exp):(KI_Stmts (Print AHole)):rest
+------------------------------------------------------------------------
 
-printCool :: MonadRewrite r K => r K ()
-printCool = do ((KI_AExp (Int i)):(KI_Stmts (Print AHole)):rest) <- get
-               put $ (KI_Stmts (Print (Int i))):rest
+class Monad m => Console m where
+  print :: String -> m ()
 
-print_ :: (Console (r K), MonadRewrite r K) => r K ()
-print_ = do (KI_Stmts (Print (Int i))):rest <- get
-            printConsole (show i)
-            put rest
+print_ :: (Console (r Stmts), MonadRewrite r Stmts) => r Stmts ()
+print_ = do (Print (Int i)) <- get
+            print (show i)
 
 ----------------------------------------------------------------------
 --  Sample programs to test syntax and semantics.
@@ -423,7 +413,6 @@ sum_imp n = Pgm ids stmts  where
                (StmtsBlock (mkStmts                 --
                  [ "sum" := (Var "sum" :+ Var "n")  --    sum = sum + n
                  , "n" := (Var "n" :+ Negate 1)     --    n = n + -1
-                 , Print((Var "sum"))               --    print(sum)
                  ]))                                --  }
           ]
 
@@ -484,5 +473,5 @@ sum_imp_summary = [whileTrueBranch, whileFalseBranch, initialize] where
             (liftStmts ifF) >> (liftK emptyBlock)
         initialize = (liftK seqStmt) >> (liftK seqStmt) >> assign >> assign
 
-eval_sum :: Integer -> (State, [String])
+eval_sum :: Integer -> State
 eval_sum n = evalOnePath sum_imp_summary $ impInitState $ sum_imp n
