@@ -48,6 +48,7 @@ since_timestamp() {
 #   …/.ghcup/bin/, etc.) with a much shorter version.
 prettypath() {
     local path="$1"; shift
+    path=${path/#$PROJDIR\//\$PROJDIR/}
     path=${path/#$ghcup_bin\//ghcup:}
     path=${path/#$HOME/\~}
     echo "$path"
