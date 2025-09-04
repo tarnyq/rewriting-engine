@@ -51,11 +51,11 @@ class Monad m => Console m where
 --  is possible for the action to not "match", returning a Nothing.
 --  This lets us try multiple rewrites in parallel until one succeeds.
 
-newtype RewriteM s a = RewriteM { getFun :: s -> Maybe (a, s, [String]) }
+newtype RewriteM s a = RewriteM { getFun :: (s, [String]) -> Maybe (a, (s, [String])) }
     deriving Functor
 
 instance Applicative (RewriteM s) where
-    pure x = RewriteM (\s -> Just (x, s, []))
+    pure x = RewriteM (\(s, output) -> Just (x, (s, output)))
     (<*>) = ap
 
 -- Alternative allows *parallel* composition of Rewrites--i.e.
@@ -67,43 +67,39 @@ instance Alternative (RewriteM s) where
 
 instance Monad (RewriteM s) where
     p >>= q = RewriteM $
-        \s -> do (aP, sP, outputP) <- ((getFun p) s)
-                 (aQ, sQ, outputQ) <- ((getFun $ q aP) sP)
-                 pure (aQ, sQ, outputQ ++ outputP)
-
-
+        \s -> do (aP, sP) <- ((getFun p) s)
+                 ((getFun $ q aP) sP)
 
 -- MonadFail allows us to have binding patterns that fail in do notation.
 instance MonadFail (RewriteM s) where
     fail _ = RewriteM $ \_ -> Nothing
 
 instance MonadRewrite RewriteM s where
-    get   = RewriteM $ \s -> Just (s, s, [])
-    put s = RewriteM $ \_ -> Just ((), s, [])
+    get   = RewriteM $ \(s, o) -> Just (s,  (s, o))
+    put s = RewriteM $ \(_, o) -> Just ((), (s, o))
     matchFail = RewriteM $ \_ -> Nothing
 
     {-# INLINE mkLift #-}
     mkLift unplug plug rw
       = do Just (p, ctx) <- fmap unplug get
-           case (getFun rw) p of
-             Just (a, p', output) -> RewriteM $ \_ -> Just (a, plug p' ctx, output)
-             Nothing              -> matchFail
+           output <- getOutput
+           case (getFun rw) (p, output) of
+             Just (a, (p', output')) -> RewriteM $ \_ -> Just (a, (plug p' ctx, output'))
+             Nothing                -> matchFail
 
+getOutput :: RewriteM s [String]
+getOutput = RewriteM $ \(s, o) -> Just (o,  (s, o))
 
 --- Rewrite rules may only update the State
 type Rewrite s = RewriteM s ()
 
 applyRewrite :: Rewrite s -> s -> Maybe (s, [String])
-applyRewrite r = (fmap dropFirst) . (getFun r)  where
-    dropFirst (_, b, c) = (b, c)
+applyRewrite r s = ((fmap snd) . (getFun r)) (s, [])
 
 ------------------------------------------------------------------------
 
 instance Console (RewriteM s) where
-    printConsole str = RewriteM $ \s -> Just ((), s, [str])
-
-putOutput :: [String] -> RewriteM s ()
-putOutput output = RewriteM $ \s -> Just ((), s, output)
+    printConsole str = RewriteM $ \(s,output) -> Just ((), (s, str:output))
 
 {-  The functions below are (nearly) forced always to be inlined because
     we use INLINE instead of INLINABLE; GHC is not eager enough to inline
