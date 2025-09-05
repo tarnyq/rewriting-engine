@@ -179,6 +179,7 @@ eval_imp pgm = evalOnePath imp $ impInitState pgm
 -- Rules
 
 imp :: MonadRewrite r State =>  [r ()]
+{-# INLINE imp #-}
 imp =   [ assignHeat
         , assignCool
         , assign
