@@ -18,9 +18,11 @@ minbash() {
 
 #   Track time taken by this script.
 #   Used to display, at end, time taken for build run.
-elapsed_start=$(date +%s%2N)   # 10s of milliseconds since the epoch
-elapsed() {                    # fractional seconds (2 places) since start
-    local msx10=$(( $(date +%s%2N) - $elapsed_start ))
+#   Note that MacOS does not support '%3N' syntax to give us milliseconds.
+elapsed_start=$(date +%s%N)     # nanoseconds since the epoch
+elapsed() {                     # fractional seconds (2 places) since start
+    local ns=$(( $(date +%s%N) - $elapsed_start ))
+    local msx10=${ns%???????}   # remove ns, μs, and once place of ms.
     echo "$(($msx10/100)).$(($msx10%100))"
 }
 
