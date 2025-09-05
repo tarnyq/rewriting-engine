@@ -13,10 +13,15 @@
 -}
 
 module KTutImp
-    ( Pgm (..), State (..), AExp (..), BExp (..), Block (..), KItem (..), Stmts (..)
+    ( -- datatypes and helpers
+      Pgm (..), State (..), KItem (..)
+    , AExp (..), BExp (..), Stmts (..), Block (..)
+    , isInt, isBool
+    , getK, putK, getStore, putStore
+    , imp                               -- rules
     , eval_imp                          -- interpreter
     , sum_imp, divide_imp, div0_imp     -- sample programs
-    , eval_sum
+    , eval_sum                          -- summarized semantics (TODO: Move to own file?)
     ) where
 
 import Prelude hiding (negate, div, print)
