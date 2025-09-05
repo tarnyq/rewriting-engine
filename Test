@@ -339,8 +339,9 @@ find_ghc() {
 }
 
 install_ghc_core() {
+    local exe="$TOOLBIN/ghc-core"
     vecho 1 '───── Checking for ghc-core executable'
-    ncabal exec -- ghc-core --help >/dev/null 2>&1 && return 0
+    "$TOOLBIN"/ghc-core --help >/dev/null 2>&1 && return 0
     vecho 0 '───── Building/installing ghc-core'
     #   We do _not_ use ncabal() because we need to use our configuration
     #   from cabal.project to set the pcre-light package options.
