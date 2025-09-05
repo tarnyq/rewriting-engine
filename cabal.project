@@ -1,0 +1,9 @@
+packages: .
+
+--  On MacOS `prce.h` is not the standard set of include dirs; we must use
+--  `pkg-config --cflags libpcre` to get it. The pcre-light package
+--  supports this but, for some reason, does not use pkg-config by default.
+--  We always have it however; Test ensures that. (Using pkg-config on most
+--  Linux systems will be a harmless no-op.)
+package pcre-light
+    flags: +use-pkg-config
