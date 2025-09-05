@@ -327,7 +327,9 @@ install_ghc_core() {
     vecho 1 '───── Checking for ghc-core executable'
     pcabal exec -- ghc-core --help >/dev/null 2>&1 && return 0
     vecho 0 '───── Building/installing ghc-core'
-    pcabal install ghc-core --installdir="$TOOLBIN" || fail
+    pcabal install ghc-core \
+        --with-compiler="$(with_compiler)" --installdir="$TOOLBIN" \
+        || fail
 }
 
 ####################################################################
