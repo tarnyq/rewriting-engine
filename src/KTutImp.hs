@@ -24,7 +24,7 @@ module KTutImp
     , eval_sum                          -- summarized semantics (TODO: Move to own file?)
     ) where
 
-import Prelude hiding (negate, div, print)
+import Prelude hiding (negate, div)
 import qualified Prelude (div)
 import Data.Map (Map, findWithDefault, fromList, insert, member)
 
@@ -378,6 +378,7 @@ sum_imp n = Pgm ids stmts  where
                (StmtsBlock (mkStmts                 --
                  [ "sum" := (Var "sum" :+ Var "n")  --    sum = sum + n
                  , "n" := (Var "n" :+ Negate 1)     --    n = n + -1
+--                 , Print((Var "sum"))               --    print(sum)
                  ]))                                --  }
           ]
 

@@ -51,6 +51,7 @@ instance Alternative (RewriteM s) where
     r1 <|> r2 = RewriteM $ \s -> ((getFun r1) s) <|> ((getFun r2) s)
 
 instance Monad (RewriteM s) where
+    {-# INLINE (>>=) #-}
     p >>= q = RewriteM $
         \s -> do (a', s') <- ((getFun p) s)
                  ((getFun $ q a') s')
