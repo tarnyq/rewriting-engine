@@ -354,16 +354,6 @@ emptyBlock :: MonadRewrite r State => r ()
 emptyBlock = do ((KI_Stmts (Block EmptyBlock)):rest) <- getK
                 putK rest
 
-
-------------------------------------------------------------------------
-
-class Monad m => Console m where
-  print :: String -> m ()
-
-print_ :: (Console (r Stmts), MonadRewrite r Stmts) => r Stmts ()
-print_ = do (Print (Int i)) <- get
-            print (show i)
-
 ----------------------------------------------------------------------
 --  Sample programs to test syntax and semantics.
 --
