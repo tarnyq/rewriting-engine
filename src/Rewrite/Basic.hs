@@ -1,6 +1,50 @@
-module Tarnyq (Rewrite, evalOnePath, evalAllPaths) where
+module Rewrite.Basic
+    (RewriteBasic(..), evalOnePath, evalAllPaths) where
 
-type Rewrite a = a -> Maybe a
+import Data.Maybe
+import Control.Applicative
+import Control.Monad
+
+import Rewrite.Class
+
+----------------------------------------------------------------------
+--  RewriteBasic represents a *possible* transition over a state.
+--  It is the minimal generalization of a rewrite rule that enables
+--  a monadic interface through the additional `a` parameter.
+--  allowing returning a value, besides updating the state.
+--
+--  It is also a generalization of Haskell's State Monad in that it
+--  is possible for the action to not "match", returning a Nothing.
+--  This lets us try multiple rewrites in parallel until one succeeds.
+
+newtype RewriteBasic s a = RewriteBasic { getFun :: s -> Maybe (a, s) }
+    deriving Functor
+
+instance Applicative (RewriteBasic s) where
+    pure x = RewriteBasic (\s -> Just (x, s))
+    (<*>) = ap
+
+-- Alternative allows *parallel* composition of Rewrites--i.e.
+-- if one fails, we fallback to the other
+instance Alternative (RewriteBasic s) where
+    empty = RewriteBasic $ \_ -> Nothing
+    {-# INLINE (<|>) #-}
+    r1 <|> r2 = RewriteBasic $ \s -> ((getFun r1) s) <|> ((getFun r2) s)
+
+instance Monad (RewriteBasic s) where
+    {-# INLINE (>>=) #-}
+    p >>= q = RewriteBasic $
+        \s -> do (a', s') <- ((getFun p) s)
+                 ((getFun $ q a') s')
+
+-- MonadFail allows us to have binding patterns that fail in do notation.
+instance MonadFail (RewriteBasic s) where
+    fail _ = RewriteBasic $ \_ -> Nothing
+
+instance MonadRewrite (RewriteBasic s) s where
+    get   = RewriteBasic $ \s -> Just (s, s)
+    put s = RewriteBasic $ \_ -> Just ((), s)
+    matchFail = RewriteBasic $ \_ -> Nothing
 
 {-  The functions below are (nearly) forced always to be inlined because
     we use INLINE instead of INLINABLE; GHC is not eager enough to inline
@@ -15,36 +59,32 @@ type Rewrite a = a -> Maybe a
 ------------------------------------------------------------------------
 --  One path evaluation
 
-{-# INLINE orElse #-}
-orElse :: Rewrite a -> Rewrite a -> Rewrite a
-orElse r1 r2 = \state -> case (r1 state) of
-                              Nothing  -> r2 state
-                              Just st' -> Just st'
-
 {-# INLINE evalOnePath #-}
 -- Return the terminal state of one path through the execution tree using
 -- first-match evaluation.
-evalOnePath :: forall a. [Rewrite a] -> a -> a
-evalOnePath rewrites state = eval' state (next state)  where
-    -- Given the current state and the next state/no-state:
-    eval' :: a -> Maybe a -> a
-    eval' s Nothing   = s                   -- terminal state: done
-    eval' _ (Just s') = eval' s' (next s')  -- non-terminal, continue stepping
+evalOnePath :: forall s. [RewriteBasic s ()] -> s -> s
+evalOnePath rewrites state = unwrap $ applyRewrite eval' state
+  where
+    eval' :: RewriteBasic s ()
+    eval' =     (next >> eval') -- If next succeeds, recurse
+            <|> pure ()         -- otherwise return the previous state
 
-    -- The next state is from the first rule in [Rewrite a] that matches,
-    -- or Nothing if no rules match.
-    next :: Rewrite a
-    next = foldr orElse (\_ -> Nothing) rewrites
+    next :: RewriteBasic s ()
+    next = asum rewrites -- Choose first rewrite that applies
 
-    --  Mystery! foldr1 is 1/3 the speed of foldr above.
-    --next = foldr1 orElse rewrites
+    unwrap :: Maybe a -> a
+    unwrap = fromMaybe undefined -- always returns a Just.
+
+    applyRewrite :: RewriteBasic s () -> s -> Maybe s
+    applyRewrite r = (fmap snd) . (getFun r)
+
 
 ------------------------------------------------------------------------
 --  All path evaluation
 
 -- Return all terminal states (leaves of an execution tree) using
 -- depth-first evaluation.
-evalAllPaths :: forall a. [Rewrite a] -> a -> [a]
+evalAllPaths :: forall a. [RewriteBasic a ()] -> a -> [a]
 evalAllPaths rewrites s = eval' [s] (next s) where
 
     -- We process the list of current states (cs) in depth-first order,
@@ -82,12 +122,12 @@ evalAllPaths rewrites s = eval' [s] (next s) where
     next = foldr parRewrite (\_ -> []) (map rewriteListResult rewrites)
 
     -- Given a rewrite rule, convert the result from a Maybe to a List.
-    rewriteListResult :: (a -> Maybe a) -> (a -> [a])
-    rewriteListResult rw = \s -> case (rw s) of
+    rewriteListResult :: RewriteBasic a () -> (a -> [a])
+    rewriteListResult rw = \s -> case ((getFun rw) s) of
                                   Nothing -> []
-                                  Just s' -> [s']
+                                  Just((), s') -> [s']
 
-    -- Combine two rewrites-to-list into a single rewrite-to-list
+    -- Combine two rewrites-to-list into s single rewrite-to-list
     -- by applying them in parallel.
     parRewrite :: (a -> [a]) -> (a -> [a]) -> (a -> [a])
     parRewrite r1 r2 = \state -> (r1 state) ++ (r2 state)

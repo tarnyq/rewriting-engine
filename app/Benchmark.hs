@@ -1,12 +1,16 @@
 module Main (main) where
 
 import KTutImp
+import Rewrite.IO
 
 main :: IO ()
 --  We must evaluate `benchmark` result to full normal form to make sure it
 --  runs! Printing the result is an easy way to force that lazy Haskell to
 --  actually do the work.
-main = print benchmark
+main = do print benchmark
 
-benchmark :: State
-benchmark = eval_imp $ sum_imp (10 * 1000 * 1000)
+benchmark :: (State, ProgramIOState)
+benchmark = go where
+    go = eval_imp $ sum_imp (10 * 1000 * 1000)              -- sum
+ -- go = eval_sum $ (10 * 1000 * 1000)                      -- summarized sum
+ -- go = eval_imp_io_pure (sum_imp_io) [show $ 10 * 1000 * 1000]

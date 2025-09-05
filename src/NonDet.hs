@@ -3,21 +3,19 @@
 
 module NonDet (State(..), eval_nondet, evalRev_nondet, evalAP_nondet) where
 
-import Tarnyq (Rewrite, evalOnePath, evalAllPaths)
+import Rewrite.Class
+import Rewrite.Basic
 
 data State = A | B | C
 deriving instance Show State
 deriving instance Eq   State
 
-nondet :: [Rewrite State]
+nondet :: MonadRewrite m State => [m ()]
 nondet = [aToB, aToC] where
-    aToB :: Rewrite State
-    aToB A = Just B
-    aToB _ = Nothing
-
-    aToC :: Rewrite State
-    aToC A = Just C
-    aToC _ = Nothing
+    aToB = do A <- get
+              put B
+    aToC = do A <- get
+              put C
 
 eval_nondet :: State -> State
 eval_nondet = evalOnePath nondet
