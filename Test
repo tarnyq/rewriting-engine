@@ -459,7 +459,7 @@ pcabal build || fail
 $gen_ghc_core && generate_ghc_core
 
 echo '━━━━━ Test'
-if [[ -z ${ghci_exprs[*]} ]]; then
+if [[ ${#ghci_exprs[@]} -eq 0 ]]; then
     pcabal test || fail "Tests failed."
 else
     #   Note that the prompts will not appear unless $verbosity=2 or above
