@@ -14,12 +14,12 @@ import Data.Maybe
 
 
 -- TODO Require MonadPlus so we can use its guard.
-class MonadFail (r s) => MonadRewrite r s where
-  get   :: r s s
-  matchFail :: r s a
-  put   :: s -> r s ()
+class MonadFail m => MonadRewrite m s | m -> s where
+  get   :: m s
+  matchFail :: m a
+  put   :: s -> m ()
 
-  guard :: Bool -> r s ()
+  guard :: Bool -> m ()
   guard True  = pure ()
   guard False = matchFail
 
@@ -59,7 +59,7 @@ instance Monad (RewriteM s) where
 instance MonadFail (RewriteM s) where
     fail _ = RewriteM $ \_ -> Nothing
 
-instance MonadRewrite RewriteM s where
+instance MonadRewrite (RewriteM s) s where
     get   = RewriteM $ \s -> Just (s, s)
     put s = RewriteM $ \_ -> Just ((), s)
     matchFail = RewriteM $ \_ -> Nothing
