@@ -118,6 +118,29 @@ pcabal() {
     "$TOOLBIN/cabal" --verbose=$vn "$@"
 }
 
+#   Run the `cabal` selected for this project, but in a current working
+#   directory that has no files in it, particularly not cabal.project* or
+#   *.cabal. Because we have no cabal.project.local, we must explicitly set
+#   --with-compiler to the one from our project directory's
+#   cabal.project.local.
+#
+#   We use this for commands that do not need our configuration (typically
+#   `cabal install` etc.), excepting the compiler to use, to avoid the many
+#   issues that cabal has with a partial set of configuration files (such
+#   as having a cabal.project* file but no *.cabal file).
+ncabal() {
+    local bsdir="$BUILDDIR/bootstrap/no-cabal-config"
+    rm -rf "$bsdir"; mkdir -p "$bsdir"
+    #   Without a .cabal file, we must be in a directory with no explicit
+    #   configuration (i.e., no cabal.project* files) or cabal will complain.
+    #   So we create an empty directory and run cabal from there, using the
+    #   --with-compiler option instead of a cabal.project.local file.
+  ( cd "$bsdir"
+    vecho 1 "• ncabal --with-compiler=$(with_compiler) $@"
+    pcabal --project-dir="$bsdir" --with-compiler="$(with_compiler)" "$@"
+  )
+}
+
 ####################################################################
 #   Toolchain discovery and installation.
 
@@ -187,21 +210,11 @@ install_stack() {
 #
 install_hpack() {
     local exe="$TOOLBIN/hpack"
-    local bsdir="$BUILDDIR/bootstrap/hpack"
     vecho 1 '───── Finding/building hpack'
     [[ -x $exe ]] && {
         vecho 1 "• Using existing $(prettypath "$exe")"; return 0; }
     vecho 1 "• Building/installing $(prettypath "$exe")"
-    #   Without a .cabal file, we must be in a directory with no explicit
-    #   configuration (i.e., no cabal.project* files) or cabal will
-    #   complain. So we create an empty directory and run cabal from there,
-    #   using the --with-compiler option instead of a cabal.project.local
-    #   file.
-    rm -rf "$bsdir"; mkdir -p "$bsdir"
-  ( cd "$bsdir"
-    pcabal install hpack --with-compiler="$(with_compiler)" \
-        --installdir="$(dirname "$exe")"
-  )
+    ncabal install hpack --installdir="$(dirname "$exe")"
 }
 
 #   Set $ghcup_bin to the location where `ghcup`'s bin directory should
@@ -231,7 +244,7 @@ set_ghcup_bin() {
 #   if the version is lower than we would like.) Otherwise we examine
 #   what's available in ~/.ghcup/bin/ and take either the default version
 #   set there, or the highest version available.
-install_cabal() {
+find_cabal() {
     vecho 1 '───── Finding cabal'
 
     #   Once there's a cabal link or binary in $TOOLBIN/, we always use
@@ -325,11 +338,11 @@ find_ghc() {
 
 install_ghc_core() {
     vecho 1 '───── Checking for ghc-core executable'
-    pcabal exec -- ghc-core --help >/dev/null 2>&1 && return 0
+    ncabal exec -- ghc-core --help >/dev/null 2>&1 && return 0
     vecho 0 '───── Building/installing ghc-core'
-    pcabal install ghc-core \
-        --with-compiler="$(with_compiler)" --installdir="$TOOLBIN" \
-        || fail
+    #   We do _not_ use ncabal() because we need to use our configuration
+    #   from cabal.project to set the pcre-light package options.
+    pcabal install ghc-core --installdir="$TOOLBIN" || fail
 }
 
 ####################################################################
@@ -447,9 +460,9 @@ mkdir -p "$TOOLBIN"; PATH="$TOOLBIN:$PATH"
 
 echo '━━━━━ Development Tools'
 install_syspkgs
-install_cabal
-since_timestamp cabal-update $((24*60*60)) pcabal update
+find_cabal
 set_or_find_ghc
+since_timestamp cabal-update $((24*60*60)) ncabal update
 install_hpack; build_cabal_files
 install_ghc_core
 
