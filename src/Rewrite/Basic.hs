@@ -25,14 +25,16 @@ instance Applicative (RewriteBasic s) where
     (<*>) = ap
 
 -- Alternative allows *parallel* composition of Rewrites--i.e.
--- if one fails, we fallback to the other
+-- if one fails, we fallback to the other. This is the 'Applicative'
+-- version of 'MonadPlus'; 'MonadPlus' reuses these definitions.
 instance Alternative (RewriteBasic s) where
-    empty = RewriteBasic $ \_ -> Nothing
+    empty = matchFail
     {-# INLINE (<|>) #-}
     r1 <|> r2 = RewriteBasic $ \s -> ((getFun r1) s) <|> ((getFun r2) s)
 
 instance Monad (RewriteBasic s) where
     {-# INLINE (>>=) #-}
+    --          -> RewriteBasic { getFun :: s -> Maybe (a, s) }
     p >>= q = RewriteBasic $
         \s -> do (a', s') <- ((getFun p) s)
                  ((getFun $ q a') s')
@@ -42,9 +44,8 @@ instance MonadFail (RewriteBasic s) where
     fail _ = RewriteBasic $ \_ -> Nothing
 
 instance MonadRewrite (RewriteBasic s) s where
-    get   = RewriteBasic $ \s -> Just (s, s)
-    put s = RewriteBasic $ \_ -> Just ((), s)
-    matchFail = RewriteBasic $ \_ -> Nothing
+    get    = RewriteBasic $ \s -> Just (s, s)
+    put s' = RewriteBasic $ \_ -> Just ((), s')
 
 {-  The functions below are (nearly) forced always to be inlined because
     we use INLINE instead of INLINABLE; GHC is not eager enough to inline
@@ -65,12 +66,17 @@ instance MonadRewrite (RewriteBasic s) s where
 evalOnePath :: forall s. [RewriteBasic s ()] -> s -> s
 evalOnePath rewrites state = unwrap $ applyRewrite eval' state
   where
+    -- If all rewrites fail, return the existing state instead of failing.
+    -- Thus, when no rules match, we get the terminal state instead of
+    -- a failure. This tail recurses (we think) on eval'.
     eval' :: RewriteBasic s ()
     eval' =     (next >> eval') -- If next succeeds, recurse
             <|> pure ()         -- otherwise return the previous state
 
     next :: RewriteBasic s ()
     next = asum rewrites -- Choose first rewrite that applies
+
+    -- asum :: (Foldable t, Alternative f) => t (f a) -> f a
 
     unwrap :: Maybe a -> a
     unwrap = fromMaybe undefined -- always returns a Just.

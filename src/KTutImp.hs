@@ -23,7 +23,7 @@ module KTutImp (
 
     -- interpreters
     , eval_imp                          -- Straigt Imp, as in the tutorial.
-    , eval_sum                          -- summarized semantics.
+    , eval_sum_summary                  -- summarized semantics.
     , eval_imp_io_pure, eval_imp_io     -- IO-enabled versions of KTutImp.
 
      -- sample programs
@@ -156,16 +156,16 @@ getK :: MonadRewrite m State => m K
 getK = do (State k _) <- get
           pure k
 
-putK :: MonadRewrite r State =>  K -> r ()
+putK :: MonadRewrite m State =>  K -> m ()
 putK k = do store <- getStore
             put (State k store)
 
 -- Store
-getStore :: MonadRewrite r State => r Store
+getStore :: MonadRewrite m State => m Store
 getStore = do (State _ store) <- get
               pure store
 
-putStore :: MonadRewrite r State => Store -> r ()
+putStore :: MonadRewrite m State => Store -> m ()
 putStore store = do k <- getK
                     put (State k store)
 
@@ -429,8 +429,8 @@ div0_imp = Pgm ids stmts  where
 -- required sequences -- of rules needed can be done fairly easily via concrete
 -- execution by having rewrite emit logs.
 
-sum_imp_summary :: MonadRewrite r State => [r ()]
-sum_imp_summary = [whileTrueBranch, whileFalseBranch, initialize] where
+sum_summary :: MonadRewrite r State => [r ()]
+sum_summary = [whileTrueBranch, whileFalseBranch, initialize] where
         whileCondEval =
             while >>  ifHeat >> notHeat >>
             leHeatL >> lookupVar >> leCoolL >> le >>
@@ -448,8 +448,12 @@ sum_imp_summary = [whileTrueBranch, whileFalseBranch, initialize] where
             ifF >> emptyBlock
         initialize = seqStmt >> seqStmt >> assign >> assign
 
-eval_sum :: Integer -> State
-eval_sum n = evalOnePath sum_imp_summary $ impInitState $ sum_imp n
+sum_summary_initState :: Integer -> State
+sum_summary_initState n = impInitState $ sum_imp n
+
+-- Run sum_imp under sum_imp_summary (derived) semantics with evalOnePath.
+eval_sum_summary :: Integer -> State
+eval_sum_summary n = evalOnePath sum_summary $ sum_summary_initState n
 
 
 ----------------------------------------------------------------------

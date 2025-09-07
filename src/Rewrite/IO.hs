@@ -22,7 +22,8 @@ data ProgramIOState = ProgramIOState { input  :: [String]
                                      }
     deriving (Show, Eq)
 
-newtype RewritePure s a = RewritePure { getFunPure :: (RewriteBasic (s, ProgramIOState) a) }
+newtype RewritePure s a =
+        RewritePure { unwrap :: (RewriteBasic (s, ProgramIOState) a) }
     deriving (Functor, Applicative, Monad, MonadFail)
 
 instance ProgramIO (RewritePure s) where
@@ -36,17 +37,18 @@ instance ProgramIO (RewritePure s) where
                           pure $ Just i
 
 instance MonadRewrite (RewritePure s) s where
-    get   = RewritePure $ RewriteBasic $ \(s, o) -> Just (s, (s, o))
-    put s = RewritePure $ RewriteBasic $ \(_, o) -> Just ((), (s, o))
-    matchFail = RewritePure $ RewriteBasic $ \_ -> Nothing
+    get   = RewritePure $ do (s, _) <- get
+                             pure s
+    put s' = RewritePure $ do (_, io) <- get
+                              put (s', io)
 
 evalOnePathIOPure :: [RewritePure s ()] -> s -> [String] -> (s, ProgramIOState)
 evalOnePathIOPure rewrites state input
-    = evalOnePath (map getFunPure rewrites) (state, ProgramIOState input [])
+    = evalOnePath (map unwrap rewrites) (state, ProgramIOState input [])
 
 evalAllPathsIOPure :: [RewritePure s ()] -> s -> [String] -> [(s, ProgramIOState)]
 evalAllPathsIOPure rewrites state input
-    = evalAllPaths (map getFunPure rewrites) (state, ProgramIOState input [])
+    = evalAllPaths (map unwrap rewrites) (state, ProgramIOState input [])
 
 -------------------------------------------------------------------------------
 

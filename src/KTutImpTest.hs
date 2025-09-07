@@ -25,7 +25,7 @@ tests = testGroup "KTutImp Tests"
     ]
   , testGroup "Summarized" [
         testCase "SumToN 10" $
-              (eval_sum $ 10)
+              (eval_sum_summary $ 10)
           @?= (State [] (fromList [("n",0),("sum",55)]))
     ]
   , testGroup "IO" [
