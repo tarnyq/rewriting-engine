@@ -21,14 +21,18 @@ module KTutImp (
     , getK, putK, getStore, putStore
     , mkStmts
 
-    -- interpreters
-    , eval_imp                          -- Straigt Imp, as in the tutorial.
-    , eval_sum_summary                  -- summarized semantics.
-    , eval_imp_io_pure, eval_imp_io     -- IO-enabled versions of KTutImp.
+    -- Straight Imp, as in the tutorial.
+    , eval_imp                              -- interpreter
+    , sum_imp, divide_imp, div0_imp         -- programs
 
-     -- sample programs
-    , sum_imp, divide_imp, div0_imp
-    , sum_imp_io                        -- needs IO
+    -- summarized semantics for sum.
+    , eval_sum_summary, evalAllPaths_sum_summary -- interpreters
+    , sum_summary_initState
+                                            -- Integers are programs
+
+    -- KTutImp extended with IO
+    , eval_imp_io_pure, eval_imp_io         -- interpreter
+    , sum_imp_io                            -- programs
     ) where
 
 import Prelude hiding (negate, div)
@@ -36,9 +40,22 @@ import qualified Prelude (div)
 import Data.Map (Map, findWithDefault, fromList, insert, member)
 import Text.Read (readMaybe)
 
-import Rewrite.Class
-import Rewrite.Basic
-import Rewrite.IO
+import Rewrite.Class (MonadRewrite(..))
+import Rewrite.Basic (evalOnePath, evalAllPaths)
+import Rewrite.IO (ProgramIO(..), ProgramIOState(..),
+                   evalOnePathIOPure, evalOnePathIO)
+
+----------------------------------------------------------------------
+-- XXX move me
+
+type ProgramGenerator p = [String] -> p
+
+data Language s p a = Language
+    { rules         :: forall m. MonadRewrite m s => [m ()]
+    , initState     :: ProgramGenerator p -> s
+    , args          :: [String] -> Integer
+    , examples      :: Map String (ProgramGenerator p)
+    }
 
 {----------------------------------------------------------------------
     Abstract Syntax
@@ -191,7 +208,7 @@ eval_imp pgm = evalOnePath imp $ impInitState pgm
 ----------------------------------------------------------------------
 -- Rules
 
-imp :: MonadRewrite r State =>  [r ()]
+imp :: MonadRewrite m State =>  [m ()]
 {-# INLINE imp #-}
 imp =   [ assignHeat
         , assignCool
@@ -455,6 +472,9 @@ sum_summary_initState n = impInitState $ sum_imp n
 eval_sum_summary :: Integer -> State
 eval_sum_summary n = evalOnePath sum_summary $ sum_summary_initState n
 
+evalAllPaths_sum_summary :: Integer -> [State]
+evalAllPaths_sum_summary n
+        = evalAllPaths sum_summary (sum_summary_initState n)
 
 ----------------------------------------------------------------------
 -- Imp IO extends the semantics of Imp with IO operations
