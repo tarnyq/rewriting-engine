@@ -53,6 +53,8 @@ benchmark_k() {
 ####################################################################
 
 PROJDIR=$(command cd "$(dirname "$0")/.." && pwd -P)
+TOOLBIN="$PROJDIR/.build/tool/bin"
+PATH="$TOOLBIN:$PATH"
 BUILDDIR="$PROJDIR"/.build/bench/imp-kompiled
 
 skip_compile=false
