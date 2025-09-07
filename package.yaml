@@ -43,6 +43,7 @@ default-extensions:         # Enabled in every module.
   - GeneralizedNewtypeDeriving
   - FunctionalDependencies
   - TypeApplications
+  - RankNTypes
 
 #   This is essentialy just documentation of what LANGUAGE pragmas we use.
 other-extensions: []
