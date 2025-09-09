@@ -92,49 +92,38 @@ evalOnePath rewrites state = unwrap $ applyRewrite eval' state
 -- Return all terminal states (leaves of an execution tree) using
 -- depth-first evaluation.
 evalAllPaths :: forall s. [RewriteBasic s ()] -> s -> [s]
-evalAllPaths rewrites s = eval' [s] (next s) where
+evalAllPaths rewrites s = eval' s [] (next s) where
 
     -- We process the list of current states (cs) in depth-first order,
     -- producing all successor states for the first before moving on
     -- to the next. Arguments:
-    -- * The stack of current states (cs).
+    -- * the curr state under consideration.
+    -- * The stack of other current states (cs).
     -- * The list successor states for just the current state at the
     --   top of the stack (ns).
-    eval' :: [s] -> [s] -> [s]
-
-    -- If there are no current states left we are done.
-    eval' [] _  = []
+    eval' :: s -> [s] -> [s] -> [s]
 
     -- If the list of successor states is empty, this is a terminal state.
     -- Add it to the output states list and continue evaluation with the
     -- next input state.
-    eval' (c:cs) [] = c:(eval' cs (nextHead cs))
+    eval' c []      [] = [c]
+    eval' c (c':cs) [] = c:(eval' c' cs (next c'))
 
     -- If we have successor states, the current state is non-terminal.
     -- We push its successors to the stack, and process the next
     -- state in the stack. Since we are using a stack we get a depth-first
     -- traversal. Replacing (ns++cs) with (cs++ns) we would instead give us
     -- a queue and a breadth first traversal.
-    eval' (_:cs) ns = eval' (ns++cs) (nextHead ns)
+    eval' _ cs (n:ns) = eval' n (ns++cs) (next n)
 
-    -- Given a list of states, return the successors of the first.
-    -- If the list is empty return nothing.
-    nextHead :: [s] -> [s]
-    nextHead []     = []
-    nextHead (s:_)  = (next s)
 
     --  At each step next gives all new states derived from a single input
     --  state, but also drops any terminal states from the previous step.
     next :: s -> [s]
-    next = foldr parRewrite (\_ -> []) (map rewriteListResult rewrites)
+    next = nexts' rewrites
 
-    -- Given a rewrite rule, convert the result from a Maybe to a List.
-    rewriteListResult :: RewriteBasic s () -> (s -> [s])
-    rewriteListResult rw = \s -> case ((rewriter rw) s) of
-                                  Nothing -> []
-                                  Just((), s') -> [s']
+    nexts' :: [RewriteBasic s ()] -> s -> [s]
+    nexts' [] _         = []
+    nexts' (rw:rws) s   =    maybeToList (fmap snd ((rewriter rw) s))
+                          ++ (nexts' rws s)
 
-    -- Combine two rewrites-to-list into s single rewrite-to-list
-    -- by applying them in parallel.
-    parRewrite :: (s -> [s]) -> (s -> [s]) -> (s -> [s])
-    parRewrite r1 r2 = \state -> (r1 state) ++ (r2 state)
