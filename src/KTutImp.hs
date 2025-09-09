@@ -292,7 +292,7 @@ leCoolL = do ((KI_AExp (Int i)):(KI_BExp (AHole :<= rhs)):rest) <- getK
 
 leHeatR :: MonadRewrite m State => m ()
 leHeatR = do ((KI_BExp (lhs :<= rhs)):rest) <- getK
-             guard $ not ((isReducedAExp lhs) && (isReducedAExp rhs))
+             guard $ (isReducedAExp lhs) && (not $ isReducedAExp rhs)
              putK $ (KI_AExp rhs):(KI_BExp (lhs :<= AHole)):rest
 
 leCoolR :: MonadRewrite m State => m ()
@@ -314,7 +314,7 @@ addCoolL = do ((KI_AExp (Int i)):(KI_AExp (AHole :+ rhs)):rest) <- getK
 
 addHeatR :: MonadRewrite m State => m ()
 addHeatR = do ((KI_AExp (lhs :+ rhs)):rest) <- getK
-              guard $ not ((isReducedAExp lhs) && (isReducedAExp rhs))
+              guard $ (isReducedAExp lhs) && (not $ isReducedAExp rhs)
               putK $ (KI_AExp rhs):(KI_AExp (lhs :+ AHole)):rest
 
 addCoolR :: MonadRewrite m State => m ()
@@ -336,7 +336,7 @@ divCoolL = do ((KI_AExp (Int i)):(KI_AExp (AHole :/ rhs)):rest) <- getK
 
 divHeatR :: MonadRewrite m State => m ()
 divHeatR = do ((KI_AExp (lhs :/ rhs)):rest) <- getK
-              guard $ not ((isReducedAExp lhs) && (isReducedAExp rhs))
+              guard $ (isReducedAExp lhs) && (not $ isReducedAExp rhs)
               putK $ (KI_AExp rhs):(KI_AExp (lhs :/ AHole)):rest
 
 divCoolR :: MonadRewrite m State => m ()
