@@ -91,7 +91,7 @@ evalOnePath rewrites state = unwrap $ applyRewrite eval' state
 
 -- Return all terminal states (leaves of an execution tree) using
 -- depth-first evaluation.
-evalAllPaths :: forall a. [RewriteBasic a ()] -> a -> [a]
+evalAllPaths :: forall s. [RewriteBasic s ()] -> s -> [s]
 evalAllPaths rewrites s = eval' [s] (next s) where
 
     -- We process the list of current states (cs) in depth-first order,
@@ -100,7 +100,7 @@ evalAllPaths rewrites s = eval' [s] (next s) where
     -- * The stack of current states (cs).
     -- * The list successor states for just the current state at the
     --   top of the stack (ns).
-    eval' :: [a] -> [a] -> [a]
+    eval' :: [s] -> [s] -> [s]
 
     -- If there are no current states left we are done.
     eval' [] _  = []
@@ -119,22 +119,22 @@ evalAllPaths rewrites s = eval' [s] (next s) where
 
     -- Given a list of states, return the successors of the first.
     -- If the list is empty return nothing.
-    nextHead :: [a] -> [a]
+    nextHead :: [s] -> [s]
     nextHead []     = []
     nextHead (s:_)  = (next s)
 
     --  At each step next gives all new states derived from a single input
     --  state, but also drops any terminal states from the previous step.
-    next :: a -> [a]
+    next :: s -> [s]
     next = foldr parRewrite (\_ -> []) (map rewriteListResult rewrites)
 
     -- Given a rewrite rule, convert the result from a Maybe to a List.
-    rewriteListResult :: RewriteBasic a () -> (a -> [a])
+    rewriteListResult :: RewriteBasic s () -> (s -> [s])
     rewriteListResult rw = \s -> case ((rewriter rw) s) of
                                   Nothing -> []
                                   Just((), s') -> [s']
 
     -- Combine two rewrites-to-list into s single rewrite-to-list
     -- by applying them in parallel.
-    parRewrite :: (a -> [a]) -> (a -> [a]) -> (a -> [a])
+    parRewrite :: (s -> [s]) -> (s -> [s]) -> (s -> [s])
     parRewrite r1 r2 = \state -> (r1 state) ++ (r2 state)
