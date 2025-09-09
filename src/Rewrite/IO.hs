@@ -101,8 +101,8 @@ instance Alternative (RewriteIO s) where
                                      pure $ r1s <|> r2s
 
 instance MonadRewrite (RewriteIO s) s where
-    get   = RewriteIO $ \s -> pure $ Just (s, s)
-    put s = RewriteIO $ \_ -> pure $ Just ((), s)
+    get    = RewriteIO $ \s -> pure $ Just (s, s)
+    put s' = RewriteIO $ \_ -> pure $ Just ((), s')
     matchFail = RewriteIO $ \_ -> pure Nothing
 
 instance ProgramIO (RewriteIO s) where
