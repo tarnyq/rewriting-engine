@@ -28,7 +28,7 @@ module KTutImp (
     , impInitState
 
     -- interpreters
-    , eval_imp                          -- Straigt Imp, as in the tutorial.
+    , eval_imp, evalAllPaths_imp        -- Straigt Imp, as in the tutorial.
     , eval_sum_summary                  -- summarized semantics.
     , eval_imp_io_pure, eval_imp_io     -- IO-enabled versions of KTutImp.
 
@@ -196,6 +196,9 @@ isReducedBExp _         = False
 -- unless 'imp' is marked INLINE.
 eval_imp :: Pgm -> State
 eval_imp pgm = evalOnePath imp $ impInitState pgm
+
+evalAllPaths_imp :: Pgm -> [State]
+evalAllPaths_imp pgm = evalAllPaths imp $ impInitState pgm
 
 
 ----------------------------------------------------------------------

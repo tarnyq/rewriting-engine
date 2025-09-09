@@ -14,6 +14,9 @@ tests = testGroup "KTutImp Tests"
         testCase "SumToN 10" $
               (eval_imp $ sum_imp 10)
           @?= (State [] (fromList [("n",0),("sum",55)]))
+      , testCase "SumToN 10 (AllPaths)" $
+              (evalAllPaths_imp $ sum_imp 10)
+          @?= [State [] (fromList [("n",0),("sum",55)])]
       , testCase "div" $
               (eval_imp divide_imp)
           @?= (State [] (fromList [("a",100),("b",3),("r",33)]))
