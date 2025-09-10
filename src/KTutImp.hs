@@ -25,6 +25,8 @@ module KTutImp (
     , getK, putK, getStore, putStore
     , mkStmts
 
+    , impInitState
+
     -- interpreters
     , eval_imp                          -- Straigt Imp, as in the tutorial.
     , eval_sum_summary                  -- summarized semantics.
