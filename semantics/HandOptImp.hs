@@ -139,7 +139,7 @@ isBool _       = False
 ----------------------------------------------------------------------
 -- Lift the function to a rewrite
 
-hand_opt_imp :: MonadRewrite m State => [m ()]
+hand_opt_imp :: MonadRewrite m dv State => [m ()]
 hand_opt_imp = [  do s <- get
                      case (imp s) of
                         Nothing -> matchFail

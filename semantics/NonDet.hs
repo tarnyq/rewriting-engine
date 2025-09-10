@@ -10,7 +10,7 @@ data State = A | B | C
 deriving instance Show State
 deriving instance Eq   State
 
-nondet :: MonadRewrite m State => [m ()]
+nondet :: MonadRewrite m dv State => [m ()]
 nondet = [aToB, aToC] where
     aToB = do A <- get
               put B

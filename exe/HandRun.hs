@@ -19,6 +19,13 @@ import KTutImp
 import KTutImp_Program
 import HandOptImp
 
+-- XXX Move the symbolic stuff to the language semantics so we don't need
+-- to import all this.
+import SymbolicImp
+import Rewrite.Symbolic
+import Data.SBV
+import Control.Monad.IO.Class (liftIO)
+
 main :: IO ()
 main = do
     args <- getArgs
@@ -29,7 +36,16 @@ main = do
         ["imppure","sum_io", n] -> print $ eval_imp_io_pure sum_imp_io [read n]
         ["optimp",  "sum", n]   -> print $ eval_hand_opt_imp (sum_imp $ read n)
         ["summarized",     n]   -> print $ eval_sum_summary $ read n
-
+        ["symbolic", "conc", n] ->
+             runSMT $ do cstate <- evalAllPaths_imp_symbolic $
+                                     sum_imp_symbolic $ dInteger (read n)
+                         liftIO $ print $ map fst cstate
+        ["symbolic", "lt10"]  ->
+             runSMT $ do n <- sInteger "n"
+                         constrain $ n .< 10
+                         cstate <- evalAllPaths_imp_symbolic $
+                                     sum_imp_symbolic (SymbolicExpr n (IntVar "n"))
+                         liftIO $ print $ map fst cstate
         _ {- Bad Arguments -}   -> do
             hPutStrLn stderr $ "Bad args: " ++ show args
             exitFailure

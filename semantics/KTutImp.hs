@@ -17,6 +17,7 @@
 -}
 
 {-# OPTIONS_GHC -Wno-unused-top-binds #-}
+
 module KTutImp (
     -- datatypes and helpers
       Pgm (..), State (..), KItem (..)
@@ -159,20 +160,20 @@ impInitStore ids = fromList $ zip ids (repeat 0)
 -- a custom `derive` attribute and/or Template Haskell.
 
 -- K
-getK :: MonadRewrite m State => m K
+getK :: MonadRewrite m dv State => m K
 getK = do (State k _) <- get
           pure k
 
-putK :: MonadRewrite m State =>  K -> m ()
+putK :: MonadRewrite m dv State =>  K -> m ()
 putK k = do store <- getStore
             put (State k store)
 
 -- Store
-getStore :: MonadRewrite m State => m Store
+getStore :: MonadRewrite m dv State => m Store
 getStore = do (State _ store) <- get
               pure store
 
-putStore :: MonadRewrite m State => Store -> m ()
+putStore :: MonadRewrite m dv State => Store -> m ()
 putStore store = do k <- getK
                     put (State k store)
 
@@ -201,7 +202,7 @@ evalAllPaths_imp pgm = evalAllPaths imp $ impInitState pgm
 ----------------------------------------------------------------------
 -- Rules
 
-imp :: MonadRewrite m State =>  [m ()]
+imp :: MonadRewrite m dv State =>  [m ()]
 {-# INLINE imp #-}
 imp =   [ assignHeat, assignCool, assign
         , lookupVar
@@ -217,7 +218,7 @@ imp =   [ assignHeat, assignCool, assign
         , emptyBlock
         ]
 
-seqStmt :: MonadRewrite m State => m ()
+seqStmt :: MonadRewrite m dv State => m ()
 {-# INLINE seqStmt #-}
 seqStmt = do ((KI_Stmts (StPair s1 s2)):rest) <- getK
              putK $ (KI_Stmts s1):(KI_Stmts $ s2):rest
@@ -230,27 +231,27 @@ seqStmt = do ((KI_Stmts (StPair s1 s2)):rest) <- getK
 -- seqStmt = [:imp | <k> ($s1;$s2):rest => $s1:s2:rest </k>
 
 
-assign :: MonadRewrite m State => m ()
+assign :: MonadRewrite m dv State => m ()
 {-# INLINE assign #-}
 assign = do ((KI_Stmts (id := Int i)):rest) <- getK
             store <- getStore
             putK rest
             putStore (insert id i store)
 
-assignHeat :: MonadRewrite m State => m ()
+assignHeat :: MonadRewrite m dv State => m ()
 {-# INLINE assignHeat #-}
 assignHeat =
     do  ((KI_Stmts (id := aexp)):rest) <- getK
         guard $ not (isReducedAExp aexp)
         putK $ (KI_AExp aexp):(KI_Stmts (id := AHole)):rest
 
-assignCool :: MonadRewrite m State => m ()
+assignCool :: MonadRewrite m dv State => m ()
 {-# INLINE assignCool #-}
 assignCool =
     do  ((KI_AExp (Int i)):(KI_Stmts (id := AHole)):rest) <- getK
         putK $ (KI_Stmts (id := (Int i))):rest
 
-while :: MonadRewrite m State => m ()
+while :: MonadRewrite m dv State => m ()
 {-# INLINE while #-}
 while = do (KI_Stmts (While cond body)):rest <- getK
            putK $ (KI_Stmts (If cond
@@ -259,133 +260,133 @@ while = do (KI_Stmts (While cond body)):rest <- getK
                                 EmptyBlock))
                   :rest
 
-ifT :: MonadRewrite m State => m ()
+ifT :: MonadRewrite m dv State => m ()
 {-# INLINE ifT #-}
 ifT = do (KI_Stmts (If (Bool True) stmtsTrue _)):rest <- getK
          putK $ (KI_Stmts (Block stmtsTrue)):rest
 
-ifF :: MonadRewrite m State => m ()
+ifF :: MonadRewrite m dv State => m ()
 {-# INLINE ifF #-}
 ifF = do (KI_Stmts (If (Bool False) _ stmtsFalse)):rest <- getK
          putK $ (KI_Stmts (Block stmtsFalse)):rest
 
-ifHeat :: MonadRewrite m State => m ()
+ifHeat :: MonadRewrite m dv State => m ()
 {-# INLINE ifHeat #-}
 ifHeat = do ((KI_Stmts (If cond stmtsTrue stmtsFalse)):rest) <- getK
             guard $ not (isReducedBExp cond)
             putK $ (KI_BExp cond):
                     (KI_Stmts (If BHole stmtsTrue stmtsFalse)):rest
 
-ifCool :: MonadRewrite m State => m ()
+ifCool :: MonadRewrite m dv State => m ()
 {-# INLINE ifCool #-}
 ifCool = do ((KI_BExp (Bool b)):
                 (KI_Stmts (If BHole stmtsTrue stmtsFalse)):rest) <- getK
             putK $ (KI_Stmts (If (Bool b) stmtsTrue stmtsFalse)):rest
 
-notHeat :: MonadRewrite m State => m ()
+notHeat :: MonadRewrite m dv State => m ()
 {-# INLINE notHeat #-}
 notHeat = do ((KI_BExp (Not bexp)):rest) <- getK
              guard $ not (isReducedBExp bexp)
              putK $ (KI_BExp bexp):(KI_BExp (Not BHole)):rest
 
-notCool :: MonadRewrite m State => m ()
+notCool :: MonadRewrite m dv State => m ()
 {-# INLINE notCool #-}
 notCool = do ((KI_BExp (Bool b)):(KI_BExp (Not BHole)):rest) <- getK
              putK $ (KI_BExp (Not (Bool b))):rest
 
-notBExp :: MonadRewrite m State => m ()
+notBExp :: MonadRewrite m dv State => m ()
 {-# INLINE notBExp #-}
 notBExp = do (KI_BExp (Not (Bool b))):rest <- getK
              putK $  (KI_BExp (Bool (not b))):rest
 
-leHeatL :: MonadRewrite m State => m ()
+leHeatL :: MonadRewrite m dv State => m ()
 {-# INLINE leHeatL #-}
 leHeatL = do ((KI_BExp (lhs :<= rhs)):rest) <- getK
              guard $ not (isReducedAExp lhs)
              putK $ (KI_AExp lhs):(KI_BExp (AHole :<= rhs)):rest
 
-leCoolL :: MonadRewrite m State => m ()
+leCoolL :: MonadRewrite m dv State => m ()
 {-# INLINE leCoolL #-}
 leCoolL = do ((KI_AExp (Int i)):(KI_BExp (AHole :<= rhs)):rest) <- getK
              putK $ (KI_BExp (Int i :<= rhs)):rest
 
-leHeatR :: MonadRewrite m State => m ()
+leHeatR :: MonadRewrite m dv State => m ()
 {-# INLINE leHeatR #-}
 leHeatR = do ((KI_BExp (lhs :<= rhs)):rest) <- getK
              guard $ (isReducedAExp lhs) && (not $ isReducedAExp rhs)
              putK $ (KI_AExp rhs):(KI_BExp (lhs :<= AHole)):rest
 
-leCoolR :: MonadRewrite m State => m ()
+leCoolR :: MonadRewrite m dv State => m ()
 {-# INLINE leCoolR #-}
 leCoolR = do ((KI_AExp (Int i)):(KI_BExp (lhs :<= AHole)):rest) <- getK
              putK $ (KI_BExp (lhs :<= Int i)):rest
 
-le :: MonadRewrite m State => m ()
+le :: MonadRewrite m dv State => m ()
 {-# INLINE le #-}
 le = do (KI_BExp (Int i :<= Int j)):rest <- getK
         putK $ (KI_BExp (Bool (i <= j))):rest
 
-addHeatL :: MonadRewrite m State => m ()
+addHeatL :: MonadRewrite m dv State => m ()
 {-# INLINE addHeatL #-}
 addHeatL = do ((KI_AExp (lhs :+ rhs)):rest) <- getK
               guard $ not (isReducedAExp lhs)
               putK $ (KI_AExp lhs):(KI_AExp (AHole :+ rhs)):rest
 
-addCoolL :: MonadRewrite m State => m ()
+addCoolL :: MonadRewrite m dv State => m ()
 {-# INLINE addCoolL #-}
 addCoolL = do ((KI_AExp (Int i)):(KI_AExp (AHole :+ rhs)):rest) <- getK
               putK $ (KI_AExp (Int i :+ rhs)):rest
 
-addHeatR :: MonadRewrite m State => m ()
+addHeatR :: MonadRewrite m dv State => m ()
 {-# INLINE addHeatR #-}
 addHeatR = do ((KI_AExp (lhs :+ rhs)):rest) <- getK
               guard $ (isReducedAExp lhs) && (not $ isReducedAExp rhs)
               putK $ (KI_AExp rhs):(KI_AExp (lhs :+ AHole)):rest
 
-addCoolR :: MonadRewrite m State => m ()
+addCoolR :: MonadRewrite m dv State => m ()
 {-# INLINE addCoolR #-}
 addCoolR = do ((KI_AExp (Int i)):(KI_AExp (lhs :+ AHole)):rest) <- getK
               putK $ (KI_AExp (lhs :+ Int i)):rest
 
-add :: MonadRewrite m State => m ()
+add :: MonadRewrite m dv State => m ()
 {-# INLINE add #-}
 add = do (KI_AExp (Int i :+ Int j)):rest <- getK
          putK $ (KI_AExp (Int $ i + j)):rest
 
-divHeatL :: MonadRewrite m State => m ()
+divHeatL :: MonadRewrite m dv State => m ()
 {-# INLINE divHeatL #-}
 divHeatL = do ((KI_AExp (lhs :/ rhs)):rest) <- getK
               guard $ not (isReducedAExp lhs)
               putK $ (KI_AExp lhs):(KI_AExp (AHole :/ rhs)):rest
 
-divCoolL :: MonadRewrite m State => m ()
+divCoolL :: MonadRewrite m dv State => m ()
 {-# INLINE divCoolL #-}
 divCoolL = do ((KI_AExp (Int i)):(KI_AExp (AHole :/ rhs)):rest) <- getK
               putK $ (KI_AExp (Int i :/ rhs)):rest
 
-divHeatR :: MonadRewrite m State => m ()
+divHeatR :: MonadRewrite m dv State => m ()
 {-# INLINE divHeatR #-}
 divHeatR = do ((KI_AExp (lhs :/ rhs)):rest) <- getK
               guard $ (isReducedAExp lhs) && (not $ isReducedAExp rhs)
               putK $ (KI_AExp rhs):(KI_AExp (lhs :/ AHole)):rest
 
-divCoolR :: MonadRewrite m State => m ()
+divCoolR :: MonadRewrite m dv State => m ()
 {-# INLINE divCoolR #-}
 divCoolR = do ((KI_AExp (Int i)):(KI_AExp (lhs :/ AHole)):rest) <- getK
               putK $ (KI_AExp (lhs :/ Int i)):rest
 
-div :: MonadRewrite m State => m ()
+div :: MonadRewrite m dv State => m ()
 {-# INLINE div #-}
 div = do (KI_AExp (Int i :/ Int j)):rest <- getK
          guard $ j /= 0
          putK $ (KI_AExp (Int $ i `Prelude.div` j)):rest
 
-negate :: MonadRewrite m State => m ()
+negate :: MonadRewrite m dv State => m ()
 {-# INLINE negate #-}
 negate = do (KI_AExp (Negate i)):rest <- getK
             putK $ (KI_AExp (Int (-1 * i))):rest
 
-lookupVar :: MonadRewrite m State => m ()
+lookupVar :: MonadRewrite m dv State => m ()
 {-# INLINE lookupVar #-}
 lookupVar = do ((KI_AExp (Var x)):rest) <- getK
                store <- getStore
@@ -393,12 +394,12 @@ lookupVar = do ((KI_AExp (Var x)):rest) <- getK
                let exp = KI_AExp $ Int $ findWithDefault undefined x store in
                  put $ State (exp:rest) store
 
-block :: MonadRewrite m State => m ()
+block :: MonadRewrite m dv State => m ()
 {-# INLINE block #-}
 block = do (KI_Stmts (Block (StmtsBlock s))):rest <- getK
            putK $ (KI_Stmts s):rest
 
-emptyBlock :: MonadRewrite m State => m ()
+emptyBlock :: MonadRewrite m dv State => m ()
 {-# INLINE emptyBlock #-}
 emptyBlock = do ((KI_Stmts (Block EmptyBlock)):rest) <- getK
                 putK rest
@@ -458,7 +459,7 @@ div0_imp = Pgm ids stmts  where
 -- execution by having evaluation emit the names of rewrites rules used,
 -- and designating certain rules as "cut-points".
 
-sum_summary :: MonadRewrite m State => [m ()]
+sum_summary :: MonadRewrite m dv State => [m ()]
 sum_summary = [whileTrueBranch, whileFalseBranch, initialize] where
         whileCondEval =
             while >>  ifHeat >> notHeat >>
@@ -490,26 +491,26 @@ eval_sum_summary n = evalOnePath sum_summary $ sum_summary_initState n
 -- Note that the type of rules that deal with IO "request" the ProgramIO
 -- interface to support these operations. See 'Rewrite.IO' for more details.
 
-imp_io :: (ProgramIO m, MonadRewrite m State) => [m ()]
+imp_io :: (ProgramIO m, MonadRewrite m dv State) => [m ()]
 imp_io = imp ++ [ printHeat, printCool, print_
                 , read_
                 ]
 
-printHeat :: MonadRewrite m State => m ()
+printHeat :: MonadRewrite m dv State => m ()
 printHeat = do ((KI_Stmts (Print exp)):rest) <- getK
                guard $ not (isReducedAExp exp)
                putK $ (KI_AExp exp):(KI_Stmts (Print AHole)):rest
 
-printCool :: MonadRewrite m State => m ()
+printCool :: MonadRewrite m dv State => m ()
 printCool = do ((KI_AExp (Int i)):(KI_Stmts (Print AHole)):rest) <- getK
                putK $ (KI_Stmts (Print (Int i))):rest
 
-print_ :: (ProgramIO m, MonadRewrite m State) => m ()
+print_ :: (ProgramIO m, MonadRewrite m dv State) => m ()
 print_ = do (KI_Stmts (Print (Int i))):rest <- getK
             printConsole i
             putK rest
 
-read_ :: (ProgramIO r, MonadRewrite r State) => r ()
+read_ :: (ProgramIO r, MonadRewrite r dv State) => r ()
 read_ = do ((KI_AExp Read):rest) <- getK
            Just i <- readConsole
            putK $ (KI_AExp (Int i)):rest

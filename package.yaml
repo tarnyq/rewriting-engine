@@ -43,6 +43,7 @@ default-extensions:         # Enabled in every module.
   - GeneralizedNewtypeDeriving
   - FunctionalDependencies
   - TypeApplications
+  - GADTs
 
 #   This is essentialy just documentation of what LANGUAGE pragmas we use.
 other-extensions: []
@@ -63,8 +64,10 @@ ghc-options:
 dependencies:
   - base >= 4.7 && < 5
   - containers
+  - extra
   - liquidhaskell
   - liquid-prelude
+  - sbv
 
 ####################################################################
 #   Libraries, executables, tests.

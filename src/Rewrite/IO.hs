@@ -3,13 +3,15 @@ module Rewrite.IO ( ProgramIO(..), ProgramIOState(..)
                   , RewriteIO, evalOnePathIO
                   ) where
 
-import Control.Applicative
-import Control.Monad
-import Data.Maybe
-import Text.Read (readMaybe)
+import           Control.Applicative
+import           Control.Monad
+import           Data.Maybe
+import           Text.Read (readMaybe)
 
-import Rewrite.Class
-import Rewrite.Basic
+import           Rewrite.Class
+import           Rewrite.Basic
+import           Rewrite.Domain (ConcreteValue)
+import qualified Rewrite.Domain as Dom
 
 
 -- | The ProgramIO typeclass enables Rewrites to perfom IO actions.
@@ -30,6 +32,7 @@ class Monad m => ProgramIO m where
 -- the states for each sub-components of a larger state and re-using
 -- RewriteBasic's implementation.
 
+-- TODO: Make parametric over dv
 data ProgramIOState = ProgramIOState { input  :: [Integer]
                                      , output :: ![Integer]
                                      }
@@ -51,11 +54,12 @@ instance ProgramIO (RewritePure s) where
                i:is -> do put (s, pis {input=is})
                           pure $ Just i
 
-instance MonadRewrite (RewritePure s) s where
+instance MonadRewrite (RewritePure s) ConcreteValue s where
     get   = RewritePure $ do (s, _) <- get
                              pure s
     put s' = RewritePure $ do (_, io) <- get
                               put (s', io)
+    sguard = Rewrite.Class.guard . Dom.unwrap
 
 {-# INLINE evalOnePathIOPure #-}
 evalOnePathIOPure :: [RewritePure s ()] -> s -> [Integer] -> (s, ProgramIOState)
@@ -108,10 +112,11 @@ instance Alternative (RewriteIO s) where
                                      r2s <- ((rewriterIO r2) s)
                                      pure $ r1s <|> r2s
 
-instance MonadRewrite (RewriteIO s) s where
+instance MonadRewrite (RewriteIO s) ConcreteValue s where
     get    = RewriteIO $ \s -> pure $ Just (s, s)
     put s' = RewriteIO $ \_ -> pure $ Just ((), s')
     matchFail = RewriteIO $ \_ -> pure Nothing
+    sguard = Rewrite.Class.guard . Dom.unwrap
 
 instance ProgramIO (RewriteIO s) where
     {-# INLINE printConsole #-}

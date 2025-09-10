@@ -2,6 +2,8 @@ module Rewrite.Class
     (MonadRewrite(..))
   where
 
+import           Rewrite.Domain (DomainValue)
+
 --  | Each rewriting rule (or combinator used to help build a rewriting
 --  rule) is a 'MonadRewrite' of 'm' and 's', where 's' is the state that
 --  is updated as rewrite rules are applied and 'm' is a context that
@@ -13,7 +15,8 @@ module Rewrite.Class
 --  modules, such as 'Rewrite.Basic.Rewrite', 'Rewrite.IO.RewritePure',
 --  'Rewrite.IO.RewriteIO', etc. to suit the particular task at hand.
 --
-class MonadFail m => MonadRewrite m s | m -> s where
+class (DomainValue dv, MonadFail m)
+    => MonadRewrite m dv s | m -> s, m -> dv where
 
   --  | Get the state 's' of the MonadRewrite. The result is typically
   --  bound to a pattern; if the pattern match fails, the rule immediately
@@ -31,12 +34,19 @@ class MonadFail m => MonadRewrite m s | m -> s where
   --  the String argument; this must be redefined if you are making use of
   --  the String.
   matchFail :: m a
-  matchFail = fail undefined
+  matchFail = fail "matchFail failed"
 
-  --  | 'guard' takes a predicate and continues if it is true or fails
-  --  if it is false. (This is a convenience wrapper around 'matchFail'.)
+  --  | 'guard' takes a concrete predicate and continues if it is true
+  --  or fails if it is false. (This is a convenience wrapper around
+  --  'matchFail'.)
+  --
+  --  Use this for parts of the state that are guaranteed to be concrete.
   guard :: Bool -> m ()
   guard True  = pure ()
   guard False = matchFail
 
-  {-# MINIMAL get, put #-}
+  -- | 'sguard' a generalization of 'guard' to arbritrary domain
+  -- representations. It maybe used for potentially symplic parts of the state.
+  sguard :: dv Bool -> m ()
+
+  {-# MINIMAL get, put, sguard #-}

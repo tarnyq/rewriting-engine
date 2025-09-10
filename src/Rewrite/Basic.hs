@@ -3,9 +3,10 @@ module Rewrite.Basic
 
 import Data.Maybe
 import Control.Applicative
-import Control.Monad
+import Control.Monad hiding (guard)
 
 import Rewrite.Class
+import Rewrite.Domain (ConcreteValue(..))
 
 ----------------------------------------------------------------------
 --  This is the simplest instance for MonadRewrite.
@@ -44,9 +45,10 @@ instance Monad (RewriteBasic s) where
 instance MonadFail (RewriteBasic s) where
     fail _ = RewriteBasic $ \_ -> Nothing
 
-instance MonadRewrite (RewriteBasic s) s where
+instance MonadRewrite (RewriteBasic s) ConcreteValue s where
     get    = RewriteBasic $ \s -> Just (s, s)
     put s' = RewriteBasic $ \_ -> Just ((), s')
+    sguard = guard.unwrap
 
 {-  The functions below are (nearly) forced always to be inlined because
     we use INLINE instead of INLINABLE; GHC is not eager enough to inline
