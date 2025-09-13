@@ -29,7 +29,7 @@ benchmark_h() {
         && { echo "WARNING: build/test skipped"; } \
         || ./Test
     echo "───── run"
-    time_run $(cabal list-bin benchmark) +RTS -sstderr
+    time_run $(cabal list-bin benchmark) "$@" +RTS -sstderr
 }
 
 benchmark_k() {
@@ -64,11 +64,13 @@ while [[ $# -gt 0 ]]; do case "$1" in                   # options
     -*)                 die 2 "Unknown option: $1";;
     *)                  break;;
 esac; done
-[[ $# -eq 1 ]] || die 2 "error: One parameter required."
+[[ $# -ge 1 ]] \
+    || die 2 "error: Atleast one parameter required. use 'h'=Haskell, 'k'=K"
 
 command cd "$PROJDIR"
-case "$1" in                                            # parameters
+type="$1"; shift
+case "$type" in                                         # parameters
     k)  benchmark_k;;
-    h)  benchmark_h;;
-    *)  die 2 "Unknown benchmark type '$1': use 'h'=Haskell, 'k'=K"
+    h)  benchmark_h "$@";;
+    *)  die 2 "Unknown benchmark type '$type': use 'h'=Haskell, 'k'=K"
 esac
