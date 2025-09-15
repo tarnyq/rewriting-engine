@@ -20,12 +20,11 @@ module HandOptImp
 
 import Prelude hiding (negate, div)
 import qualified Prelude (div)
-import Data.Map (Map, findWithDefault, fromList, insert, member)
-import Text.Read (readMaybe)
+import Data.Map (findWithDefault, insert, member)
 
 import Rewrite.Class
 import Rewrite.Basic
-import KTutImp hiding (imp)
+import KTutImp
 
 ----------------------------------------------------------------------
 -- Semantics
