@@ -3,8 +3,6 @@ module Main (main) where
 import KTutImp
 import HandOptImp
 
-import Data.SBV
-import Data.SBV.Control
 import Control.Monad.IO.Class (liftIO)
 import System.Environment (getArgs)
 
