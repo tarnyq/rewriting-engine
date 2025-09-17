@@ -70,7 +70,9 @@ dependencies:
 #   Libraries, executables, tests.
 
 library:
-  source-dirs:          [src, src/experiment]
+  source-dirs:
+    - src/
+    - src/experiment/
   dependencies:         [tasty, tasty-hunit]
 
 executables:
