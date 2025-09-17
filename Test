@@ -476,9 +476,48 @@ pcabal build || fail
 #   and comparison between commits.
 $gen_ghc_core && generate_ghc_core
 
+test_benchmark() {
+    local exe="$1"; shift
+    local exebase=$(basename "$exe")
+    local expected="$1"; shift
+    vecho 1 "• Testing: $exebase $@"
+
+    local output=$("$exe" "$@")
+    [[ "$expected" = "$output" ]] && return     # Even Bash needs quotes here!
+    echo "Benchmark test failed: $(basename "$exe")"
+    echo "      Args: $@"
+    echo "  Expected: $expected"
+    echo "    Actual: $output"
+    false || fail
+}
+
+test_benchmarks() {
+    local exe=$(.build/tool/bin/cabal list-bin benchmark)
+
+    test_benchmark "$exe" \
+        'State {k = [], store = fromList [("n",0),("sum",6)]}' \
+        imp sum 3
+
+    test_benchmark "$exe" \
+        'State {k = [KI_Stmts (Block EmptyBlock)], store = fromList [("n",0),("sum",10)]}' \
+        optimp sum 4
+
+    #   Generate error on bad args.
+    vecho 1 '• Testing bad arguments'
+    local ec=0
+    "$exe" BAD_ARGUMENT >/dev/null 2>&1 || ec=$?
+    [[ $ec -eq 1 ]] || {
+        echo "Benchmark '$(basename "$exe")' badarg did not fail (ec=$ec)"
+        false || fail
+    }
+}
+
 echo '━━━━━ Test'
 if [[ ${#ghci_exprs[@]} -eq 0 ]]; then
-    pcabal test || fail "Tests failed."
+    echo '───── Unit tests'
+    pcabal test || fail "Unit tests failed."
+    echo '───── Benchmark tests'
+    test_benchmarks
 else
     #   Note that the prompts will not appear unless $verbosity=2 or above
     #   (giving -v1 to cabal). That will also produce a bunch of additional
