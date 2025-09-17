@@ -1,6 +1,8 @@
 module Main (main) where
 
 import System.Environment (getArgs)
+import System.Exit (exitFailure)
+import System.IO (hPutStrLn, stderr)
 
 import KTutImp
 import HandOptImp
@@ -19,4 +21,5 @@ main = do
         []                      -> print $ eval_imp $ sum_imp $ 10*1000*1000
         -- Bad arguments
         _                       -> do
-            putStrLn "Bad usage." -- TODO should go to stderr.
+            hPutStrLn stderr $ "Bad args: " ++ show args
+            exitFailure
