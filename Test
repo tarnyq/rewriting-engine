@@ -68,7 +68,11 @@ vecho() {
 warn()  { echo 1>&2 'Warning:' "$@"; }
 
 #   `… || fail [message]`: Fail the build, printing _message_ if present
-#   and exiting with the most recent exit code.
+#   and exiting with the most recent exit code. WARNING: If you use this on
+#   a shell function, it will mark all command executions in that function
+#   (and any functions it calls) as "tested" for the purposes of the -E
+#   option. So it is best to use this only on individual commands or
+#   functions that cannot have internal failures.
 fail() {
     ec=$?
     [[ -n $@ ]] && echo 1>&2 "$@"
