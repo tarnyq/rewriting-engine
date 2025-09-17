@@ -400,14 +400,14 @@ generate_ghc_core() { (
     command cd "$PROJDIR"
     commit=$(git describe --always --dirty)
     mkdir -p .build/ghc-core/obj/
-    for src in app/*.hs src/*.hs; do
+    for src in exe/*.hs src/*.hs; do
         vecho 1 "• $src"
         #   ghc will generate an executable if the name of the module
         #   is `Main` and places it in the source dir no matter the
         #   -outputdir setting, so we have to disable that manually.
         #   But we _cannot_ use -o on non-Main files here for some
         #   reason.
-        oarg=; [[ $src = app/* ]] && oarg='-o /dev/null'
+        oarg=; [[ $src = exe/* ]] && oarg='-o /dev/null'
 
         #   -O2 is the default; we use -O1 because that's the much more
         #   typical optimisation level for production code and compiles

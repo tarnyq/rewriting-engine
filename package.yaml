@@ -75,16 +75,16 @@ library:
 
 executables:
   hello:
-    source-dirs:        app
+    source-dirs:        exe/
     main:               Hello.hs
     other-modules:      []
   benchmark:
-    source-dirs:        app
+    source-dirs:        exe/
     main:               Benchmark.hs
     other-modules:      []
     dependencies:       [ Tarnyq ]
   optimization:
-    source-dirs:        app
+    source-dirs:        exe/
     main:               Optimization.hs
     other-modules:      []
     dependencies:       [ Tarnyq ]
