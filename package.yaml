@@ -73,6 +73,8 @@ library:
   source-dirs:
     - src/
     - src/experiment/
+    - semantics/
+    - program/
   dependencies:         [tasty, tasty-hunit]
 
 executables:
