@@ -425,6 +425,45 @@ generate_ghc_core() { (
 ) }
 
 ####################################################################
+#   Test functions.
+
+test_benchmark() {
+    local exe="$1"; shift
+    local exebase=$(basename "$exe")
+    local expected="$1"; shift
+    vecho 1 "• Testing: $exebase $@"
+
+    local output=$("$exe" "$@")
+    [[ "$expected" = "$output" ]] && return     # Even Bash needs quotes here!
+    echo "Benchmark test failed: $(basename "$exe")"
+    echo "      Args: $@"
+    echo "  Expected: $expected"
+    echo "    Actual: $output"
+    false || fail
+}
+
+test_benchmarks() {
+    local exe=$(.build/tool/bin/cabal list-bin benchmark)
+
+    test_benchmark "$exe" \
+        'State {k = [], store = fromList [("n",0),("sum",6)]}' \
+        imp sum 3
+
+    test_benchmark "$exe" \
+        'State {k = [KI_Stmts (Block EmptyBlock)], store = fromList [("n",0),("sum",10)]}' \
+        optimp sum 4
+
+    #   Generate error on bad args.
+    vecho 1 '• Testing bad arguments'
+    local ec=0
+    "$exe" BAD_ARGUMENT >/dev/null 2>&1 || ec=$?
+    [[ $ec -eq 1 ]] || {
+        echo "Benchmark '$(basename "$exe")' badarg did not fail (ec=$ec)"
+        false || fail
+    }
+}
+
+####################################################################
 #   Environment setup and argument parsing.
 
 #   Because we use Liquid Haskell, only certain versions of GHC will work.
@@ -479,42 +518,6 @@ pcabal build || fail
 #   Automatically generate core output for later examination
 #   and comparison between commits.
 $gen_ghc_core && generate_ghc_core
-
-test_benchmark() {
-    local exe="$1"; shift
-    local exebase=$(basename "$exe")
-    local expected="$1"; shift
-    vecho 1 "• Testing: $exebase $@"
-
-    local output=$("$exe" "$@")
-    [[ "$expected" = "$output" ]] && return     # Even Bash needs quotes here!
-    echo "Benchmark test failed: $(basename "$exe")"
-    echo "      Args: $@"
-    echo "  Expected: $expected"
-    echo "    Actual: $output"
-    false || fail
-}
-
-test_benchmarks() {
-    local exe=$(.build/tool/bin/cabal list-bin benchmark)
-
-    test_benchmark "$exe" \
-        'State {k = [], store = fromList [("n",0),("sum",6)]}' \
-        imp sum 3
-
-    test_benchmark "$exe" \
-        'State {k = [KI_Stmts (Block EmptyBlock)], store = fromList [("n",0),("sum",10)]}' \
-        optimp sum 4
-
-    #   Generate error on bad args.
-    vecho 1 '• Testing bad arguments'
-    local ec=0
-    "$exe" BAD_ARGUMENT >/dev/null 2>&1 || ec=$?
-    [[ $ec -eq 1 ]] || {
-        echo "Benchmark '$(basename "$exe")' badarg did not fail (ec=$ec)"
-        false || fail
-    }
-}
 
 echo '━━━━━ Test'
 if [[ ${#ghci_exprs[@]} -eq 0 ]]; then
