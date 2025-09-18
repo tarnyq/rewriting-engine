@@ -22,14 +22,15 @@ import Prelude hiding (negate, div)
 import qualified Prelude (div)
 import Data.Map (findWithDefault, insert, member)
 
-import Rewrite.Class
 import Rewrite.Basic
+import Rewrite.Class
+import Rewrite.DomainValue
 import KTutImp
 
 ----------------------------------------------------------------------
 -- Semantics
 
-imp :: State -> Maybe State
+imp :: State ConcreteValue -> Maybe (State ConcreteValue)
 imp (State ((KI_Stmts (StPair s1 s2)):rest) store)
       = Just $ State ((KI_Stmts s1):(KI_Stmts s2):rest) store
 
@@ -50,10 +51,10 @@ imp (State ((KI_Stmts (While cond body)):rest) store)
                      ):rest)
                     store)
 
-imp (State (KI_Stmts (If (Bool True) stmtsTrue _):rest) store)
+imp (State (KI_Stmts (If (Bool (CV True)) stmtsTrue _):rest) store)
       = Just $ State (KI_Stmts (Block stmtsTrue):rest) store
 
-imp (State (KI_Stmts (If (Bool False) _ stmtsFalse):rest) store)
+imp (State (KI_Stmts (If (Bool (CV False)) _ stmtsFalse):rest) store)
       = Just $ State ((KI_Stmts (Block stmtsFalse)):rest) store
 
 imp (State ((KI_Stmts (If cond stmtsTrue stmtsFalse)):rest) store) | not (isBool cond)
@@ -70,7 +71,8 @@ imp (State ((KI_BExp (Bool b)):(KI_BExp (Not BHole)):rest) store)
        = Just $ State ((KI_BExp (Not (Bool b))):rest) store
 
 
-imp (State ((KI_BExp (Not (Bool b))):rest) store) = Just $ (State ((KI_BExp (Bool (not b))):rest) store)
+imp (State ((KI_BExp (Not (Bool b))):rest) store)
+  = Just $ (State ((KI_BExp (Bool (dNot b))):rest) store)
 
 imp (State ((KI_BExp (lhs :<= rhs)):rest) store) | not (isInt lhs)
       = Just $ State ((KI_AExp lhs):(KI_BExp (AHole :<= rhs)):rest) store
@@ -85,7 +87,7 @@ imp (State ((KI_AExp (Int i)):(KI_BExp (lhs :<= AHole)):rest) store)
       = Just $ State ((KI_BExp (lhs :<= Int i)):rest) store
 
 imp (State ((KI_BExp (Int i :<= Int j)):rest) store)
-     = Just $ State ((KI_BExp (Bool (i <= j))):rest) store
+     = Just $ State ((KI_BExp (Bool (i `dLte` j))):rest) store
 
 imp (State ((KI_AExp (lhs :+ rhs)):rest) store) | not (isInt lhs)
        = Just $ State ((KI_AExp lhs):(KI_AExp (AHole :+ rhs)):rest) store
@@ -100,10 +102,10 @@ imp (State ((KI_AExp (Int i)):(KI_AExp (Int lhs :+ AHole)):rest) store)
        = Just $ State ((KI_AExp (Int lhs :+ Int i)):rest) store
 
 imp (State ((KI_AExp (Int i :+ Int j)):rest) store)
-      = Just $ State ((KI_AExp (Int (i + j))):rest) store
+      = Just $ State ((KI_AExp (Int (i `dAdd` j))):rest) store
 
 imp (State ((KI_AExp (Negate i)):rest) store)
-         = Just $ State ((KI_AExp (Int (-1 * i))):rest) store
+         = Just $ State ((KI_AExp (Int $ (dInteger $ -1) `dMul` i)):rest) store
 imp (State ((KI_AExp (lhs :/ rhs)):rest) store) | not (isInt lhs)
        = Just $ State ((KI_AExp lhs):(KI_AExp (AHole :/ rhs)):rest) store
 
@@ -116,8 +118,10 @@ imp (State ((KI_AExp (Int lhs :/ rhs)):rest) store) | not (isInt rhs)
 imp (State ((KI_AExp (Int i)):(KI_AExp (Int lhs :/ AHole)):rest) store)
        = Just $ State ((KI_AExp (Int lhs :/ Int i)):rest) store
 
-imp (State ((KI_AExp (Int i :/ Int j)):rest) store) | j /= 0
-      = Just $ State ((KI_AExp (Int (i `Prelude.div` j))):rest) store
+imp (State ((KI_AExp (Int i :/ Int j)):rest) store) | j /= (dInteger 0)
+      = Just $ State
+            ((KI_AExp (Int $ CV ((unwrap)i `Prelude.div` (unwrap j)))):rest)
+            store
 
 imp (State ((KI_AExp (Var x)):rest) store)
           | member x store
@@ -128,24 +132,24 @@ imp (State ((KI_Stmts (Block (StmtsBlock s))):rest) store)
         = Just (State ((KI_Stmts s):rest) store)
 imp _ = Nothing
 
-isInt :: AExp -> Bool
+isInt :: AExp dv -> Bool
 isInt (Int _) = True
 isInt _       = False
 
-isBool :: BExp -> Bool
+isBool :: BExp dv -> Bool
 isBool (Bool _) = True
-isBool _       = False
+isBool _        = False
 
 ----------------------------------------------------------------------
 -- Lift the function to a rewrite
 
-hand_opt_imp :: MonadRewrite m State => [m ()]
+hand_opt_imp :: MonadRewrite m (State ConcreteValue) dv => [m ()]
 hand_opt_imp = [  do s <- get
                      case (imp s) of
                         Nothing -> matchFail
                         Just s' -> put s'
                ]
 
-eval_hand_opt_imp :: Pgm -> State
+eval_hand_opt_imp :: Pgm ConcreteValue -> State ConcreteValue
 eval_hand_opt_imp pgm = evalOnePath hand_opt_imp $ impInitState pgm
 

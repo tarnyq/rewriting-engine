@@ -2,6 +2,8 @@ module Rewrite.Class
     (MonadRewrite(..))
   where
 
+import Rewrite.DomainValue
+
 --  | Each rewriting rule (or combinator used to help build a rewriting
 --  rule) is a 'MonadRewrite' of 'm' and 's', where 's' is the state that
 --  is updated as rewrite rules are applied and 'm' is a context that
@@ -13,7 +15,8 @@ module Rewrite.Class
 --  modules, such as 'Rewrite.Basic.Rewrite', 'Rewrite.IO.RewritePure',
 --  'Rewrite.IO.RewriteIO', etc. to suit the particular task at hand.
 --
-class MonadFail m => MonadRewrite m s | m -> s where
+class (DomainValue dv, MonadFail m)
+    => MonadRewrite m s dv | m -> s, m -> dv where
 
   --  | Get the state 's' of the MonadRewrite. The result is typically
   --  bound to a pattern; if the pattern match fails, the rule immediately
@@ -38,5 +41,7 @@ class MonadFail m => MonadRewrite m s | m -> s where
   guard :: Bool -> m ()
   guard True  = pure ()
   guard False = matchFail
+
+  sguard :: dv Bool -> m ()
 
   {-# MINIMAL get, put #-}

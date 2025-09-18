@@ -6,6 +6,7 @@ import Control.Applicative
 import Control.Monad
 
 import Rewrite.Class
+import Rewrite.DomainValue (ConcreteValue(..))
 
 ----------------------------------------------------------------------
 --  This is the simplest instace for MonadRewrite.
@@ -44,9 +45,10 @@ instance Monad (RewriteBasic s) where
 instance MonadFail (RewriteBasic s) where
     fail _ = RewriteBasic $ \_ -> Nothing
 
-instance MonadRewrite (RewriteBasic s) s where
+instance MonadRewrite (RewriteBasic s) s ConcreteValue where
     get    = RewriteBasic $ \s -> Just (s, s)
     put s' = RewriteBasic $ \_ -> Just ((), s')
+    sguard (CV b) = Rewrite.Class.guard b
 
 {-  The functions below are (nearly) forced always to be inlined because
     we use INLINE instead of INLINABLE; GHC is not eager enough to inline

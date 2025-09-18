@@ -1,3 +1,5 @@
+{-# LANGUAGE UndecidableInstances #-} -- Needed for instances of Show, Eq
+
 module Rewrite.IO ( ProgramIO(..), ProgramIOState(..)
                   , RewritePure, evalOnePathIOPure, evalAllPathsIOPure
                   , RewriteIO, evalOnePathIO
@@ -6,10 +8,12 @@ module Rewrite.IO ( ProgramIO(..), ProgramIOState(..)
 import Control.Applicative
 import Control.Monad
 import Data.Maybe
+import Text.Read (readMaybe)
 
 import Rewrite.Class
 import Rewrite.Basic
-
+import Rewrite.DomainValue (ConcreteValue(CV), DomainValue(..))
+import qualified Rewrite.DomainValue (ConcreteValue(unwrap))
 
 -- | The ProgramIO typeclass enables Rewrites to perfom IO actions.
 -- This module provides two instances of MonadRewrite that are also instances
@@ -17,11 +21,12 @@ import Rewrite.Basic
 -- 1.   'RewritePure' that provides a "mock" IO, and
 -- 2.   'RewriteIO' that forwards the calls to operating system's IO.
 --
-class Monad m => ProgramIO m where
-  -- | Print a line to stdout
-  printConsole :: String -> m ()
-  -- | Read a line from stdin
-  readConsole  :: m (Maybe String)
+--- XXX Generalize to arbitrary values.
+class (DomainValue dv, Monad m) => ProgramIO m dv where
+  -- | Print a value to stdout
+  printConsole :: dv Integer -> m ()
+  -- | Read a value from stdin
+  readConsole  :: m (Maybe (dv Integer))
 
 -------------------------------------------------------------------------------
 
@@ -29,16 +34,17 @@ class Monad m => ProgramIO m where
 -- the states for each sub-components of a larger state and re-using
 -- RewriteBasic's implementation.
 
-data ProgramIOState = ProgramIOState { input  :: [String]
-                                     , output :: ![String]
-                                     }
-    deriving (Show, Eq)
+data ProgramIOState dv = ProgramIOState { input  :: [dv Integer]
+                                        , output :: ![dv Integer]
+                                        }
+deriving instance Show (dv Integer) => Show (ProgramIOState dv)
+deriving instance Eq (dv Integer)   => Eq (ProgramIOState dv)
 
-newtype RewritePure s a =
-        RewritePure { unwrap :: (RewriteBasic (s, ProgramIOState) a) }
+newtype RewritePure s dv a =
+        RewritePure { unwrap :: (RewriteBasic (s, ProgramIOState dv) a) }
     deriving (Functor, Applicative, Monad, MonadFail)
 
-instance ProgramIO (RewritePure s) where
+instance DomainValue dv => ProgramIO (RewritePure s dv) dv where
     printConsole str = RewritePure $ do (s, pis@ProgramIOState{output=o}) <- get
                                         put (s, pis {output=(str:o)})
     readConsole = RewritePure $
@@ -48,17 +54,18 @@ instance ProgramIO (RewritePure s) where
                i:is -> do put (s, pis {input=is})
                           pure $ Just i
 
-instance MonadRewrite (RewritePure s) s where
+instance DomainValue dv => MonadRewrite (RewritePure s dv) s ConcreteValue where
     get   = RewritePure $ do (s, _) <- get
                              pure s
     put s' = RewritePure $ do (_, io) <- get
                               put (s', io)
+    sguard (CV b) = Rewrite.Class.guard b
 
-evalOnePathIOPure :: [RewritePure s ()] -> s -> [String] -> (s, ProgramIOState)
+evalOnePathIOPure :: [RewritePure s dv ()] -> s -> [dv Integer] -> (s, ProgramIOState dv)
 evalOnePathIOPure rewrites state input
     = evalOnePath (map unwrap rewrites) (state, ProgramIOState input [])
 
-evalAllPathsIOPure :: [RewritePure s ()] -> s -> [String] -> [(s, ProgramIOState)]
+evalAllPathsIOPure :: [RewritePure s dv ()] -> s -> [dv Integer] -> [(s, ProgramIOState dv)]
 evalAllPathsIOPure rewrites state input
     = evalAllPaths (map unwrap rewrites) (state, ProgramIOState input [])
 
@@ -100,18 +107,22 @@ instance Alternative (RewriteIO s) where
                                      r2s <- ((rewriterIO r2) s)
                                      pure $ r1s <|> r2s
 
-instance MonadRewrite (RewriteIO s) s where
+instance MonadRewrite (RewriteIO s) s ConcreteValue where
     get    = RewriteIO $ \s -> pure $ Just (s, s)
     put s' = RewriteIO $ \_ -> pure $ Just ((), s')
     matchFail = RewriteIO $ \_ -> pure Nothing
+    sguard (CV b) = Rewrite.Class.guard b
 
-instance ProgramIO (RewriteIO s) where
-    printConsole str = RewriteIO $ \s -> do putStrLn str
-                                            pure $ Just ((), s)
+instance ProgramIO (RewriteIO s) ConcreteValue where
+    printConsole v = RewriteIO $ \s -> do putStrLn (show $ Rewrite.DomainValue.unwrap v)
+                                          pure $ Just ((), s)
 
-    -- TODO: Handle case where exceptions
-    readConsole = RewriteIO $ \s -> do str <- getLine
-                                       pure $ Just (Just str, s)
+    -- TODO: Handle exceptions on getLine
+    readConsole = RewriteIO $ \s ->
+                    do str <- getLine
+                       case readMaybe str of
+                            Nothing -> pure Nothing
+                            Just v -> pure $ Just (Just $ dInteger $ v, s)
 
 {-# INLINE evalOnePathIOPure #-}
 evalOnePathIO :: forall s. [RewriteIO s ()] -> s -> IO s
