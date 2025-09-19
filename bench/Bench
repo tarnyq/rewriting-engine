@@ -29,7 +29,8 @@ benchmark_h() {
         && { echo "WARNING: build/test skipped"; } \
         || ./Test
     echo "───── run"
-    time_run $($TOOLBIN/cabal list-bin hand-run) "$@" +RTS -sstderr
+    local exe=$($TOOLBIN/cabal list-bin hand-run)
+    time_run "$exe" imp sum $((10*1000*1000)) +RTS -sstderr
 }
 
 benchmark_k() {

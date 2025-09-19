@@ -28,9 +28,7 @@ main = do
         ["imppure","sum_io", n] -> print $ eval_imp_io_pure sum_imp_io [n]
         ["optimp",  "sum", n]   -> print $ eval_hand_opt_imp (sum_imp $ read n)
         ["summarized",     n]   -> print $ eval_sum_summary $ read n
-        -- No args; Run the standard benchmark
-        []                      -> print $ eval_imp $ sum_imp $ 10*1000*1000
-        -- Bad arguments
-        _                       -> do
+
+        _ {- Bad Arguments -}   -> do
             hPutStrLn stderr $ "Bad args: " ++ show args
             exitFailure
