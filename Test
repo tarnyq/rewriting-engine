@@ -453,6 +453,10 @@ test_executables() {
         'State {k = [KI_Stmts (Block EmptyBlock)], store = fromList [("n",0),("sum",10)]}' \
         optimp sum 4
 
+    test_exe "$exe" \
+        "$(printf '15\nState {k = [], store = fromList [("n",0),("sum",15)]}')" \
+        imp_io sum_io < <(echo 5)
+
     #   Generate error on bad args.
     vecho 1 '• Testing bad arguments'
     local ec=0
