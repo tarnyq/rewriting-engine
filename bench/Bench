@@ -29,7 +29,7 @@ benchmark_h() {
         && { echo "WARNING: build/test skipped"; } \
         || ./Test
     echo "───── run"
-    time_run $($TOOLBIN/cabal list-bin benchmark) "$@" +RTS -sstderr
+    time_run $($TOOLBIN/cabal list-bin hand-run) "$@" +RTS -sstderr
 }
 
 benchmark_k() {

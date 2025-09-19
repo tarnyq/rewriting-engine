@@ -427,7 +427,7 @@ generate_ghc_core() { (
 ####################################################################
 #   Test functions.
 
-test_benchmark() {
+test_exe() {
     local exe="$1"; shift
     local exebase=$(basename "$exe")
     local expected="$1"; shift
@@ -442,14 +442,14 @@ test_benchmark() {
     false || fail
 }
 
-test_benchmarks() {
-    local exe=$(.build/tool/bin/cabal list-bin benchmark)
+test_executables() {
+    local exe=$(.build/tool/bin/cabal list-bin hand-run)
 
-    test_benchmark "$exe" \
+    test_exe "$exe" \
         'State {k = [], store = fromList [("n",0),("sum",6)]}' \
         imp sum 3
 
-    test_benchmark "$exe" \
+    test_exe "$exe" \
         'State {k = [KI_Stmts (Block EmptyBlock)], store = fromList [("n",0),("sum",10)]}' \
         optimp sum 4
 
@@ -458,7 +458,7 @@ test_benchmarks() {
     local ec=0
     "$exe" BAD_ARGUMENT >/dev/null 2>&1 || ec=$?
     [[ $ec -eq 1 ]] || {
-        echo "Benchmark '$(basename "$exe")' badarg did not fail (ec=$ec)"
+        echo "hand-run '$(basename "$exe")' badarg did not fail (ec=$ec)"
         false || fail
     }
 }
@@ -523,8 +523,8 @@ echo '━━━━━ Test'
 if [[ ${#ghci_exprs[@]} -eq 0 ]]; then
     echo '───── Unit tests'
     pcabal test || fail "Unit tests failed."
-    echo '───── Benchmark tests'
-    test_benchmarks
+    echo '───── Executable program tests'
+    test_executables
 else
     #   Note that the prompts will not appear unless $verbosity=2 or above
     #   (giving -v1 to cabal). That will also produce a bunch of additional

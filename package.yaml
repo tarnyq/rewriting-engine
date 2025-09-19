@@ -78,9 +78,9 @@ executables:
     source-dirs:        exe/
     main:               Hello.hs
     other-modules:      []
-  benchmark:
+  hand-run:
     source-dirs:        exe/
-    main:               Benchmark.hs
+    main:               HandRun.hs
     other-modules:      []
     dependencies:       [ Tarnyq ]
   optimization:

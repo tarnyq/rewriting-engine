@@ -1,3 +1,14 @@
+{-  hand-run - execute a hand-coded function call
+
+    This is essentially a quick hack to let us run various
+    semantics/evaluator/program combinations. We pattern match against the
+    command-line arguments to match constants and bind values and, based on
+    that, execute the matching hand-coded function call.
+
+    This should be replaced with something (probably an `eval` program)
+    that has a consistent interface and can call arbitary specifications
+    of evaluator, semantics and program.
+-}
 module Main (main) where
 
 import System.Environment (getArgs)
