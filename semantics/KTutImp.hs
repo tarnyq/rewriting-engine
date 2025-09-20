@@ -217,11 +217,18 @@ imp =   [ assignHeat, assignCool, assign
         , emptyBlock
         ]
 
-
 seqStmt :: MonadRewrite m State => m ()
 {-# INLINE seqStmt #-}
 seqStmt = do ((KI_Stmts (StPair s1 s2)):rest) <- getK
              putK $ (KI_Stmts s1):(KI_Stmts $ s2):rest
+
+-- These rewrite rules are very verbose, with a non-trivial type and pragmas
+-- needed for performance.
+-- Per https://www.cs.tufts.edu/comp/150FP/archive/geoff-mainland/quasiquoting.pdf
+-- We believe that we can bring them quite close to K, something like the following:
+--
+-- seqStmt = [:imp | <k> ($s1;$s2):rest => $s1:s2:rest </k>
+
 
 assign :: MonadRewrite m State => m ()
 {-# INLINE assign #-}
