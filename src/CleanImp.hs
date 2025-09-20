@@ -144,26 +144,23 @@ imp = [ assignHeat
       , notBExp
       , leHeatL
       , leCoolL
+--    , leHeatR   -- liftK
+--    , leCoolR   -- liftK
+--    , le        -- liftBExp
+--    , addHeatL  -- liftK
+--    , addCoolL  -- liftK
+--    , addHeatR  -- liftK
+--    , addCoolR  -- liftK
+--    , add       -- liftAExp
+--    , divHeatL  -- liftK
+--    , divCoolL  -- liftK
+--    , divHeatR  -- liftK
+--    , divCoolR  -- liftK
+--    , div       -- liftAExp
+--    , negate    -- liftAExp
       ]
-
---         , liftK     leHeatR
---         , liftK     leCoolR
---         , liftBExp  le
---         , liftK     addHeatL
---         , liftK     addCoolL
---         , liftK     addHeatR
---         , liftK     addCoolR
---         , liftAExp  add
---         , liftK     divHeatL
---         , liftK     divCoolL
---         , liftK     divHeatR
---         , liftK     divCoolR
---         , liftAExp  div
---         , liftAExp  negate
---         ]
     where
--- 
--- 
+
     assignHeat ::MonadRewrite m State => m ()
     assignHeat = do
         ((KI_Stmt (id := aexp)):rest) <- getK
