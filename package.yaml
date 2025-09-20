@@ -65,6 +65,7 @@ dependencies:
   - containers
   - liquidhaskell
   - liquid-prelude
+  - haskell-src-exts
 
 ####################################################################
 #   Libraries, executables, tests.
@@ -92,6 +93,10 @@ executables:
     main:               Optimization.hs
     other-modules:      []
     dependencies:       [ Tarnyq ]
+  show-exports:
+    source-dirs:        exe/
+    main:               ShowExports.hs
+    other-modules:      []
 
 tests:
   tarnyq-test:

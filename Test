@@ -443,28 +443,32 @@ test_exe() {
 }
 
 test_executables() {
-    local exe=$(.build/tool/bin/cabal list-bin hand-run)
-
-    test_exe "$exe" \
-        'State {k = [], store = fromList [("n",0),("sum",6)]}' \
-        imp sum 3
-
-    test_exe "$exe" \
-        'State {k = [KI_Stmts (Block EmptyBlock)], store = fromList [("n",0),("sum",10)]}' \
-        optimp sum 4
-
-    test_exe "$exe" \
-        "$(printf '15\nState {k = [], store = fromList [("n",0),("sum",15)]}')" \
-        imp_io sum_io < <(echo 5)
+    local hand_run=$($TOOLBIN/cabal list-bin hand-run)
 
     #   Generate error on bad args.
     vecho 1 '• Testing bad arguments'
     local ec=0
-    "$exe" BAD_ARGUMENT >/dev/null 2>&1 || ec=$?
+    "$hand_run" BAD_ARGUMENT >/dev/null 2>&1 || ec=$?
     [[ $ec -eq 1 ]] || {
-        echo "hand-run '$(basename "$exe")' badarg did not fail (ec=$ec)"
+        echo "hand-run '$(basename "$hand_run")' badarg did not fail (ec=$ec)"
         false || fail
     }
+
+    test_exe "$hand_run" \
+        'State {k = [], store = fromList [("n",0),("sum",6)]}' \
+        imp sum 3
+
+    test_exe "$hand_run" \
+        'State {k = [KI_Stmts (Block EmptyBlock)], store = fromList [("n",0),("sum",10)]}' \
+        optimp sum 4
+
+    test_exe "$hand_run" \
+        "$(printf '15\nState {k = [], store = fromList [("n",0),("sum",15)]}')" \
+        imp_io sum_io < <(echo 5)
+
+    test_exe $($TOOLBIN/cabal list-bin show-exports) \
+        'KTutImp_Program: sum_imp, divide_imp, div0_imp, sum_imp_io' \
+        $PROJDIR/program/KTutImp_Program.hs
 }
 
 ####################################################################
