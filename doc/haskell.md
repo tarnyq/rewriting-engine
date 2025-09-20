@@ -67,6 +67,11 @@ startup. When examining an individual module, typically you want to use
 it and make all definitions (including non-exported ones) available as
 unqualified names in the current environment.
 
+### Cabal
+
+See [`sedoc:lang/haskell/cabal.md`] for general use of Cabal and
+information on how to set up and use package data files.
+
 
 
 <!-------------------------------------------------------------------->
@@ -84,3 +89,6 @@ unqualified names in the current environment.
 [Stack]: https://docs.haskellstack.org/en/stable/
 [Stackage]: https://www.stackage.org/
 [`lhver/README.md`]: ../lhver/README.md
+
+<!-- Cabal -->
+[`sedoc:lang/haskell/cabal.md`]: https://github.com/0cjs/sedoc/blob/main/lang/haskell/cabal.md
