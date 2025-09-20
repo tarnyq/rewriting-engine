@@ -6,6 +6,7 @@ import Test.Tasty.HUnit
 import Data.Map (fromList)
 
 import KTutImp
+import KTutImp_Program
 import Rewrite.IO
 
 tests :: TestTree

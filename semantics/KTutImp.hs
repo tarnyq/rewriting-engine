@@ -32,9 +32,6 @@ module KTutImp (
     , eval_sum_summary                  -- summarized semantics.
     , eval_imp_io_pure, eval_imp_io     -- IO-enabled versions of KTutImp.
 
-     -- sample programs
-    , sum_imp, divide_imp, div0_imp
-    , sum_imp_io                        -- needs IO
     ) where
 
 import Prelude hiding (negate, div)

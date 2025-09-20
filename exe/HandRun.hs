@@ -16,6 +16,7 @@ import System.Exit (exitFailure)
 import System.IO (hPutStrLn, stderr)
 
 import KTutImp
+import KTutImp_Program
 import HandOptImp
 
 main :: IO ()
