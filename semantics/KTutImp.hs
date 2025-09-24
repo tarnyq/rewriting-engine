@@ -36,8 +36,8 @@ module KTutImp (
 
 import Prelude hiding (negate, div)
 import qualified Prelude (div)
+
 import Data.Map (Map, findWithDefault, fromList, insert, member)
-import Text.Read (readMaybe)
 
 import Rewrite.Class
 import Rewrite.Basic
@@ -499,15 +499,13 @@ printCool = do ((KI_AExp (Int i)):(KI_Stmts (Print AHole)):rest) <- getK
 
 print_ :: (ProgramIO m, MonadRewrite m State) => m ()
 print_ = do (KI_Stmts (Print (Int i))):rest <- getK
-            printConsole (show i)
+            printConsole i
             putK rest
 
 read_ :: (ProgramIO r, MonadRewrite r State) => r ()
 read_ = do ((KI_AExp Read):rest) <- getK
-           Just str <- readConsole
-           case readMaybe @Integer str of --parse as Integer
-             Nothing -> matchFail
-             Just i  -> putK $ (KI_AExp (Int i)):rest
+           Just i <- readConsole
+           putK $ (KI_AExp (Int i)):rest
 
 sum_imp_io :: Pgm                                   --  'sum.imp'
 sum_imp_io = Pgm ids stmts  where
@@ -523,7 +521,7 @@ sum_imp_io = Pgm ids stmts  where
           , Print (Var "sum")                       --  print(sum)
           ]
 
-eval_imp_io_pure :: Pgm -> [String] -> (State, ProgramIOState)
+eval_imp_io_pure :: Pgm -> [Integer] -> (State, ProgramIOState)
 eval_imp_io_pure pgm input = evalOnePathIOPure imp_io (impInitState pgm) input
 
 eval_imp_io :: Pgm -> IO State

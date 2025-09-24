@@ -37,8 +37,8 @@ tests = testGroup "KTutImp Tests"
               (eval_imp_io_pure (sum_imp 10) [])
           @?= (State [] (fromList [("n",0),("sum",55)]), ProgramIOState [] [])
       , testCase "SumToN IO" $
-              (eval_imp_io_pure sum_imp_io ["10"])
-          @?= (State [] (fromList [("n",0),("sum",55)]), ProgramIOState [] ["55"])
+              (eval_imp_io_pure sum_imp_io [10])
+          @?= (State [] (fromList [("n",0),("sum",55)]), ProgramIOState [] [55])
       , testCase "SumToN Fail" $
               (eval_imp_io_pure sum_imp_io [])
           @?= (State stuck_read (fromList [("n",0),("sum",0)]), ProgramIOState [] [])
