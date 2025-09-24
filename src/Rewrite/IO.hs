@@ -57,6 +57,7 @@ instance MonadRewrite (RewritePure s) s where
     put s' = RewritePure $ do (_, io) <- get
                               put (s', io)
 
+{-# INLINE evalOnePathIOPure #-}
 evalOnePathIOPure :: [RewritePure s ()] -> s -> [Integer] -> (s, ProgramIOState)
 evalOnePathIOPure rewrites state input
     = evalOnePath (map unwrap rewrites) (state, ProgramIOState input [])
@@ -113,16 +114,17 @@ instance MonadRewrite (RewriteIO s) s where
     matchFail = RewriteIO $ \_ -> pure Nothing
 
 instance ProgramIO (RewriteIO s) where
+    {-# INLINE printConsole #-}
     printConsole v = RewriteIO $ \s -> do print v
                                           pure $ Just ((), s)
 
-    -- TODO: Handle case where exceptions
+    {-# INLINE readConsole #-}
     readConsole = RewriteIO $ \s -> do l <- getLine
                                        case readMaybe @Integer l of
                                         Just v  -> pure $ Just (Just v, s)
                                         Nothing -> pure $ Just (Nothing, s)
 
-{-# INLINE evalOnePathIOPure #-}
+{-# INLINE evalOnePathIO #-}
 evalOnePathIO :: forall s. [RewriteIO s ()] -> s -> IO s
 evalOnePathIO rewrites state = do s <- applyRewrite eval' state
                                   pure $ unwrap s
