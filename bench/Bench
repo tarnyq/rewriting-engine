@@ -30,7 +30,8 @@ benchmark_h() {
         || ./Test
     echo "───── run"
     local exe=$($TOOLBIN/cabal list-bin hand-run)
-    time_run "$exe" imp sum $((10*1000*1000)) +RTS -sstderr
+    [[ "$#" -ne 0 ]] || set -- imp sum $((10*1000*1000))
+    time_run "$exe" "$@" +RTS -sstderr
 }
 
 benchmark_k() {
