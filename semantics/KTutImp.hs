@@ -22,7 +22,6 @@ module KTutImp (
     -- datatypes and helpers
       Pgm (..), State (..), KItem (..)
     , AExp (..), BExp (..), Stmts (..), Block (..)
-    , isReducedAExp, isReducedBExp
     , getK, putK, getStore, putStore
     , mkStmts
 
