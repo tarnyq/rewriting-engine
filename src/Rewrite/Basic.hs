@@ -8,7 +8,7 @@ import Control.Monad
 import Rewrite.Class
 
 ----------------------------------------------------------------------
---  This is the simplest instace for MonadRewrite.
+--  This is the simplest instance for MonadRewrite.
 --  It represents a *possible* transition over a state.
 --  It is the minimal generalization of a rewrite rule that enables
 --  a monadic interface through the additional `a` parameter.
