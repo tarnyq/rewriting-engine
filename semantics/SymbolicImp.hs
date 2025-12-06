@@ -169,17 +169,6 @@ isReducedBExp :: BExp dv -> Bool
 isReducedBExp (Bool _)  = True
 isReducedBExp _         = False
 
----------------------------------------------------------------------
--- Semantics
--- If this is expanded in other files, it may lose the inlining
--- unless 'imp' is marked INLINE.
-
-evalAllPaths_imp_symbolic :: (Pgm SymbolicExpr) -> Symbolic [Constrained (State SymbolicExpr)]
-evalAllPaths_imp_symbolic pgm = evalAllPathsSymbolic imp_symbolic $ impInitState pgm
-
-evalOnePath_imp_symbolic :: (Pgm ConcreteValue) -> State ConcreteValue
-evalOnePath_imp_symbolic pgm = evalOnePath imp_symbolic $ impInitState pgm
-
 ----------------------------------------------------------------------
 -- Rules
 
@@ -370,3 +359,13 @@ sum_imp_symbolic n = Pgm ids stmts  where
                  , "n" := (Var "n" :+ Negate (dInteger 1))  --    n = n + -1
                  ]))                                        --  }
           ]
+
+---------------------------------------------------------------------
+-- Analyses
+
+evalAllPaths_imp_symbolic :: (Pgm SymbolicExpr) -> Symbolic [Constrained (State SymbolicExpr)]
+evalAllPaths_imp_symbolic pgm = evalAllPathsSymbolic imp_symbolic $ impInitState pgm
+
+evalOnePath_imp_symbolic :: (Pgm ConcreteValue) -> State ConcreteValue
+evalOnePath_imp_symbolic pgm = evalOnePath imp_symbolic $ impInitState pgm
+
