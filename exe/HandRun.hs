@@ -36,10 +36,18 @@ main = do
         ["imppure","sum_io", n] -> print $ eval_imp_io_pure sum_imp_io [read n]
         ["optimp",  "sum", n]   -> print $ eval_hand_opt_imp (sum_imp $ read n)
         ["summarized",     n]   -> print $ eval_sum_summary $ read n
-        ["symbolic", "conc", n] ->
+
+        -- Run sum on onepath, using the "symbolic" semantics with ConcreteValue
+        ["symbolic", "crunsum", n] ->
+             print $ evalOnePath_imp_symbolic
+                        $ sum_imp_symbolic (dInteger (read n))
+        -- Run sum on all-paths, using the "symbolic" semantics with SymbolicExpr
+        ["symbolic", "srunsum", n] ->
              runSMT $ do cstate <- evalAllPaths_imp_symbolic $
                                      sum_imp_symbolic $ dInteger (read n)
                          liftIO $ print $ map fst cstate
+
+        -- Return terminal states for sum-to-n, where N < 10
         ["symbolic", "lt10"]  ->
              runSMT $ do n <- sInteger "n"
                          constrain $ n .< 10

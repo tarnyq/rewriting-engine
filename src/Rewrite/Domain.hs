@@ -47,6 +47,8 @@ instance DomainValue ConcreteValue where
     dOr  a b = CV $ (unwrap a) || (unwrap b)
     dNot a   = CV $ not (unwrap a)
 
+deriving instance (Show a) => Show (ConcreteValue a)
+
 -- | We use SBV to represent symbolic values that maybe sent to the SMT solver.
 instance DomainValue SBV where
     dInteger = literal

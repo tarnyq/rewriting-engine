@@ -8,6 +8,7 @@
 
 module SymbolicImp (
       evalAllPaths_imp_symbolic                 -- interpreters
+    , evalOnePath_imp_symbolic
     , sum_imp_symbolic                          -- sample programs
     ) where
 
@@ -17,6 +18,8 @@ import Data.Map (Map, findWithDefault, fromList, insert, member)
 
 import Rewrite.Class
 import Rewrite.Symbolic
+import Rewrite.Basic
+import Rewrite.Domain
 
 
 {----------------------------------------------------------------------
@@ -173,6 +176,9 @@ isReducedBExp _         = False
 
 evalAllPaths_imp_symbolic :: (Pgm SymbolicExpr) -> Symbolic [Constrained (State SymbolicExpr)]
 evalAllPaths_imp_symbolic pgm = evalAllPathsSymbolic imp_symbolic $ impInitState pgm
+
+evalOnePath_imp_symbolic :: (Pgm ConcreteValue) -> State ConcreteValue
+evalOnePath_imp_symbolic pgm = evalOnePath imp_symbolic $ impInitState pgm
 
 ----------------------------------------------------------------------
 -- Rules
@@ -351,7 +357,7 @@ emptyBlock = do ((KI_Stmts (Block EmptyBlock)):rest) <- getK
 --  (Eventually Test will be able find all of the `x :: Pgm` here
 --  and evaluate them all for you.)
 
-sum_imp_symbolic :: (SymbolicExpr Integer) -> (Pgm SymbolicExpr)
+sum_imp_symbolic :: DomainValue dv => (dv Integer) -> (Pgm dv)
                                                             --  'sum.imp'
 sum_imp_symbolic n = Pgm ids stmts  where
     ids   = ["n", "sum"]                                    --  int n, sum
