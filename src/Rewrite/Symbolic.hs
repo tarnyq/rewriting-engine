@@ -1,6 +1,6 @@
 module Rewrite.Symbolic
     ( DomainValue(..)
-    , Constrained, SymBool, SymInteger
+    , Constrained(..), SymBool, SymInteger
     , DomainTerm(IntVar)
     , SymbolicExpr(..)
     , evalAllPathsSymbolic
@@ -20,7 +20,8 @@ import Rewrite.Domain
 
 type SymInteger = SymbolicExpr Integer
 type SymBool = SymbolicExpr Bool
-type Constrained s = (s, SymbolicExpr Bool)
+data Constrained s =
+        Constrained { state :: s, constraint :: (SymbolicExpr Bool) }
 
 newtype RewriteSymbolic s a =
     RewriteSymbolic {
@@ -44,13 +45,14 @@ instance MonadFail (RewriteSymbolic s) where
 instance Alternative (RewriteSymbolic s) where
     empty = RewriteSymbolic $ \_ -> Nothing
     {-# INLINE (<|>) #-}
-    r1 <|> r2 = RewriteSymbolic $ \s -> ((rewriterSymbolic r1) s) <|> ((rewriterSymbolic r2) s)
+    r1 <|> r2 = RewriteSymbolic
+        $ \s -> ((rewriterSymbolic r1) s) <|> ((rewriterSymbolic r2) s)
 
 instance MonadRewrite (RewriteSymbolic s) SymbolicExpr s where
-    get       = RewriteSymbolic $ \(s, cond) -> Just (s, (s, cond))
-    put s'    = RewriteSymbolic $ \(_, cond) -> Just ((), (s', cond))
-    matchFail = RewriteSymbolic $ \_         -> Nothing
-    sguard sbool = RewriteSymbolic $ \(s, cond) -> Just ((), (s, dAnd cond sbool))
+    get       = RewriteSymbolic $ \(Constrained s cond) -> Just (s, (Constrained s cond))
+    put s'    = RewriteSymbolic $ \(Constrained _ cond) -> Just ((), (Constrained s' cond))
+    matchFail = RewriteSymbolic $ \_                  -> Nothing
+    sguard sbool = RewriteSymbolic $ \(Constrained s cond) -> Just ((), (Constrained s (dAnd cond sbool)))
 
 ------------------------------------------------------------------------
 --  All path evaluation
@@ -60,10 +62,10 @@ instance MonadRewrite (RewriteSymbolic s) SymbolicExpr s where
 evalAllPathsSymbolic ::
     forall s. [RewriteSymbolic s ()] -> s -> Symbolic [Constrained s]
 evalAllPathsSymbolic rewrites state
-    = query $ eval' (state, dBool True)
+    = query $ eval' (Constrained state (dBool True))
   where
     eval' :: Constrained s -> Query [Constrained s]
-    eval' (s, (SymbolicExpr cond expr))
+    eval' (Constrained s (SymbolicExpr cond expr))
         = case unliteral cond of Just True -> satCase (s, cond, expr)
                                  _         -> checkWithSolver (s, cond, expr)
     checkWithSolver (s, cond, expr) = inNewAssertionStack $
@@ -78,14 +80,14 @@ evalAllPathsSymbolic rewrites state
         do -- Since we already asserted the condition in this Query context,
            -- we do not need that as part of the Constrained for continued
            -- execution.
-           let ns = nexts (s, SymbolicExpr sTrue expr)
+           let ns = nexts (Constrained s (SymbolicExpr sTrue expr))
            recurse <- concatMapM eval' ns
 
            -- If the branch conditions of all next states is not total,
            -- we also need to consider the residue, i.e. the negation
            -- of the disjunction of all the path conditions returned
            -- by next.
-           constrain $ (sbv.snd) (residue ns s)
+           constrain $ (sbv . constraint) (residue ns s)
            res <- checkSat
 
            case res of Sat -> pure $ (residue ns s):recurse
@@ -98,7 +100,8 @@ evalAllPathsSymbolic rewrites state
     nexts s = (nexts' rewrites s)
 
     residue :: [Constrained s] -> s -> Constrained s
-    residue ss s = (s, dNot $ foldl' (dOr) (dBool False) (fmap snd ss))
+    residue ss s =
+        Constrained s (dNot $ foldl' (dOr) (dBool False) (fmap constraint ss))
 
     nexts' :: [RewriteSymbolic s ()] -> (Constrained s) -> [Constrained s]
     nexts' []       _ = []
