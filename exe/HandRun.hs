@@ -14,6 +14,7 @@ module Main (main) where
 import System.Environment (getArgs)
 import System.Exit (exitFailure)
 import System.IO (hPutStrLn, stderr)
+import Data.SBV
 
 import KTutImp
 import KTutImp_Program
@@ -23,7 +24,7 @@ import HandOptImp
 -- to import all this.
 import SymbolicImp
 import Rewrite.Symbolic
-import Data.SBV
+import Domain.Term (DomainTerm(..))
 import Control.Monad.IO.Class (liftIO)
 
 main :: IO ()
