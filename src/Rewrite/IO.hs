@@ -10,8 +10,8 @@ import           Text.Read (readMaybe)
 
 import           Rewrite.Class
 import           Rewrite.Basic
-import           Rewrite.Domain (ConcreteValue)
-import qualified Rewrite.Domain as Dom
+import           Domain (ConcreteValue)
+import qualified Domain as Dom
 
 
 -- | The ProgramIO typeclass enables Rewrites to perfom IO actions.

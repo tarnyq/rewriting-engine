@@ -1,7 +1,6 @@
 module Rewrite.Symbolic
     ( DomainValue(..)
     , Constrained(..), SymBool, SymInteger
-    , DomainTerm(IntVar)
     , SymbolicExpr(..)
     , evalAllPathsSymbolic
     )
@@ -15,7 +14,7 @@ import Data.SBV
 import Data.SBV.Control
 
 import Rewrite.Class
-import Rewrite.Domain
+import Domain
 
 
 type SymInteger = SymbolicExpr Integer

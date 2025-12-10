@@ -2,7 +2,7 @@ module Rewrite.Class
     (MonadRewrite(..))
   where
 
-import           Rewrite.Domain (DomainValue)
+import           Domain.Class
 
 --  | Each rewriting rule (or combinator used to help build a rewriting
 --  rule) is a 'MonadRewrite' of 'm' and 's', where 's' is the state that

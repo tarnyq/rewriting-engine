@@ -6,7 +6,7 @@ import Control.Applicative
 import Control.Monad hiding (guard)
 
 import Rewrite.Class
-import Rewrite.Domain (ConcreteValue(..))
+import Domain (ConcreteValue(..))
 
 ----------------------------------------------------------------------
 --  This is the simplest instance for MonadRewrite.

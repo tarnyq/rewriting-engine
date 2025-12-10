@@ -19,7 +19,7 @@ import Data.Map (Map, findWithDefault, fromList, insert, member)
 import Rewrite.Class
 import Rewrite.Symbolic
 import Rewrite.Basic
-import Rewrite.Domain
+import Domain
 
 
 {----------------------------------------------------------------------
