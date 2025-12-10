@@ -1,7 +1,7 @@
 module Rewrite.Domain
     ( ConcreteValue(..)
     , DomainValue(..)
-    , DomainTerm(IntVar, IntLit)
+    , DomainTerm(IntVar)
     , SymbolicExpr(..)
     )
   where
@@ -89,12 +89,8 @@ data DomainTerm a where
     Not     :: DomainTerm Bool -> DomainTerm Bool
 
 deriving instance Show (DomainTerm a)
-deriving instance Eq (DomainTerm a)
 
 instance DomainValue DomainTerm where
-    -- TODO: For now, we hand-write some simplifications.
-    -- Note that these simplifications are not passed on to the SMT
-    -- solver.
     dInteger  = IntLit
     dAdd (IntLit 0) n = n
     dAdd (IntLit n) (IntLit m) = (IntLit $ m+n)
@@ -110,16 +106,9 @@ instance DomainValue DomainTerm where
     dBool       = BoolLit
     dNEq        = NEq
     lt          = Rewrite.Domain.LT
-
-    dAnd (BoolLit True) b = b
-    dAnd a (BoolLit True) = a
-    dAnd a b    = Rewrite.Domain.And a b
-
+    dAnd        = Rewrite.Domain.And
     dOr         = Rewrite.Domain.Or
-
-    dNot (BoolLit False) = (BoolLit True)
-    dNot (Not a) = a
-    dNot a      = Rewrite.Domain.Not a
+    dNot        = Rewrite.Domain.Not
 
 -- | We use couple the SBV represntation with the term represntation for
 --  symolic execution. In theory, we could get away without using the term

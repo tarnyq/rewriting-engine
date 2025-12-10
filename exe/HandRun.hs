@@ -47,21 +47,13 @@ main = do
                                      sum_imp_symbolic $ dInteger (read n)
                          liftIO $ print $ map state cstate
 
-        -- Return terminal states for sum-to-n, where N < 0
+        -- Return terminal states for sum-to-n, where N < 10
         ["symbolic", "lt10"]  ->
              runSMT $ do n <- sInteger "n"
                          constrain $ n .< 10
                          cstate <- evalAllPaths_imp_symbolic $
                                      sum_imp_symbolic (SymbolicExpr n (IntVar "n"))
                          liftIO $ print $ map state cstate
-
-        ["symbolic", "summarize"]  ->
-             runSMT $ do n <- sInteger "n"
-                         cstate <- summarize_imp $
-                                     sum_imp_symbolic (SymbolicExpr n (IntVar "n"))
-                         liftIO $ print $ cstate
-
         _ {- Bad Arguments -}   -> do
             hPutStrLn stderr $ "Bad args: " ++ show args
             exitFailure
-

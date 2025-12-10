@@ -9,17 +9,12 @@
 module SymbolicImp (
       evalAllPaths_imp_symbolic                 -- interpreters
     , evalOnePath_imp_symbolic
-    , summarize_imp
     , sum_imp_symbolic                          -- sample programs
     ) where
 
 import Prelude hiding (negate)
-import Data.Map (Map
-                , findWithDefault, fromAscList, fromList
-                , insert, keys, member, toAscList
-                )
-import Data.Maybe (catMaybes)
-import Data.SBV (Symbolic, unliteral, freshVar_)
+import Data.SBV (Symbolic)
+import Data.Map (Map, findWithDefault, fromList, insert, member)
 
 import Rewrite.Class
 import Rewrite.Symbolic
@@ -177,14 +172,13 @@ isReducedBExp _         = False
 ----------------------------------------------------------------------
 -- Rules
 
-cutpoint_rules :: MonadRewrite m dv (State dv) =>  [m ()]
-cutpoint_rules = [ while ]
-{-# INLINE cutpoint_rules #-}
-ordinary_rules :: MonadRewrite m dv (State dv) =>  [m ()]
-ordinary_rules =
+imp_symbolic :: MonadRewrite m dv (State dv) =>  [m ()]
+{-# INLINE imp_symbolic #-}
+imp_symbolic =
         [ assignHeat, assignCool, assign
         , lookupVar
         , seqStmt
+        , while
         , ifHeat, ifCool, ifT, ifF
         , notHeat, notCool, notBExp
         , leHeatL, leCoolL, leHeatR, leCoolR , le
@@ -194,10 +188,6 @@ ordinary_rules =
         , block
         , emptyBlock
         ]
-{-# INLINE ordinary_rules #-}
-imp_symbolic :: MonadRewrite m dv (State dv) =>  [m ()]
-imp_symbolic = ordinary_rules ++ cutpoint_rules
-{-# INLINE imp_symbolic #-}
 
 seqStmt :: MonadRewrite m dv (State dv) => m ()
 seqStmt = do ((KI_Stmts (StPair s1 s2)):rest) <- getK
@@ -373,52 +363,9 @@ sum_imp_symbolic n = Pgm ids stmts  where
 ---------------------------------------------------------------------
 -- Analyses
 
--- TODO: Complete me
-isSameNode :: IsSameNode (State dv)
-isSameNode s1 s2 = undefined
---   (keys.store) s1 == (keys.store) s2
-
-makeConvex :: MakeConvex (State SymbolicExpr)
-makeConvex (State {k = [KI_Stmts (While (Not (Var "n" :<= Int zero1)) (StmtsBlock (StPair ("sum" := (Var "sum" :+ Var "n")) ("n" := (Var "n" :+ Negate one1)))))], store = store1})
-           (State {k = [KI_Stmts (While (Not (Var "n" :<= Int zero2)) (StmtsBlock (StPair ("sum" := (Var "sum" :+ Var "n")) ("n" := (Var "n" :+ Negate one2)))))], store = store2})
-     |     ((term zero1) == IntLit 0)
-        && ((term zero2) == IntLit 0)
-        && ((term one1) == IntLit 1)
-        && ((term one2) == IntLit 1)
-        && (keys store1) == (keys store2)
-    = do store <- makeConvexStore store1 store2
-         case store of
-           Just store' ->
-            pure $ Just $
-              State { k = [KI_Stmts (While (Not (Var "n" :<= Int (dInteger 0))) (StmtsBlock (StPair ("sum" := (Var "sum" :+ Var "n")) ("n" := (Var "n" :+ Negate (dInteger 1))))))]
-                    , store=store'
-                    }
-           Nothing -> pure Nothing
-
--- requires identical keys
-makeConvexStore :: MakeConvex (Store SymbolicExpr)
-makeConvexStore store1 store2= do
-    let (k1, v1) = (unzip.toAscList) store1
-    let (k2, v2) = (unzip.toAscList) store2
-    let vs = zip v1 v2
-    vs' <- mapM (uncurry makeConvexIntegers) vs
-    pure $ Just (fromAscList (zip k1 (catMaybes vs')))
-
-makeConvexIntegers :: MakeConvex (SymbolicExpr Integer)
-makeConvexIntegers v1 v2 | (term v1) == (term v2)
-    = pure $ Just v1
-makeConvexIntegers _ _
-    = do sVar <- freshVar_
-         -- TODO: Give unique name
-         pure $ Just $  SymbolicExpr sVar (IntVar "XXX")
-
-
 evalAllPaths_imp_symbolic :: (Pgm SymbolicExpr) -> Symbolic [Constrained (State SymbolicExpr)]
 evalAllPaths_imp_symbolic pgm = evalAllPathsSymbolic imp_symbolic $ impInitState pgm
 
 evalOnePath_imp_symbolic :: (Pgm ConcreteValue) -> State ConcreteValue
 evalOnePath_imp_symbolic pgm = evalOnePath imp_symbolic $ impInitState pgm
-
-summarize_imp :: (Pgm SymbolicExpr) -> Symbolic [Constrained (State SymbolicExpr)]
-summarize_imp pgm = summarize ordinary_rules cutpoint_rules isSameNode makeConvex (impInitState pgm)
 
