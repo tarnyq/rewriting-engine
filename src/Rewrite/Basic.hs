@@ -76,8 +76,9 @@ evalOnePath rewrites state = unwrap $ applyRewrite eval' state
     eval' =     (next >> eval') -- If next succeeds, recurse
             <|> pure ()         -- otherwise return the previous state
 
+    -- Apply rewrites in parallel; Choose first that applies
     next :: RewriteBasic s ()
-    next = asum rewrites -- Choose first rewrite that applies
+    next = asum rewrites
 
     -- asum :: (Foldable t, Alternative f) => t (f a) -> f a
 
@@ -94,7 +95,7 @@ evalOnePath rewrites state = unwrap $ applyRewrite eval' state
 -- Return all terminal states (leaves of an execution tree) using
 -- depth-first evaluation.
 evalAllPaths :: forall s. [RewriteBasic s ()] -> s -> [s]
-evalAllPaths rewrites s = eval' s [] (next s) where
+evalAllPaths rewrites s = eval' s [] (nexts s) where
 
     -- We process the list of current states (cs) in depth-first order,
     -- producing all successor states for the first before moving on
@@ -103,26 +104,29 @@ evalAllPaths rewrites s = eval' s [] (next s) where
     -- * The stack of other current states (cs).
     -- * The list successor states for just the current state at the
     --   top of the stack (ns).
+    --
+    -- We use an explicit argument for the successor states so that we can
+    -- be tail recursive.
     eval' :: s -> [s] -> [s] -> [s]
 
     -- If the list of successor states is empty, this is a terminal state.
     -- Add it to the output states list and continue evaluation with the
-    -- next input state.
+    -- following input state.
     eval' c []      [] = [c]
-    eval' c (c':cs) [] = c:(eval' c' cs (next c'))
+    eval' c (c':cs) [] = c:(eval' c' cs (nexts c'))
 
     -- If we have successor states, the current state is non-terminal.
-    -- We push its successors to the stack, and process the next
+    -- We push its successors to the stack, and process the following
     -- state in the stack. Since we are using a stack we get a depth-first
     -- traversal. Replacing (ns++cs) with (cs++ns) we would instead give us
     -- a queue and a breadth first traversal.
-    eval' _ cs (n:ns) = eval' n (ns++cs) (next n)
+    eval' _ cs (n:ns) = eval' n (ns++cs) (nexts n)
 
 
-    --  At each step next gives all new states derived from a single input
+    --  At each step nexts gives all new states derived from a single input
     --  state, but also drops any terminal states from the previous step.
-    next :: s -> [s]
-    next = nexts' rewrites
+    nexts :: s -> [s]
+    nexts = nexts' rewrites
 
     nexts' :: [RewriteBasic s ()] -> s -> [s]
     nexts' [] _         = []
