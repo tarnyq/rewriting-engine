@@ -32,6 +32,7 @@ data DomainTerm a where
     Not     :: DomainTerm Bool -> DomainTerm Bool
 
 deriving instance Show (DomainTerm a)
+deriving instance Eq (DomainTerm a)
 
 
 instance DomainValue DomainTerm where
