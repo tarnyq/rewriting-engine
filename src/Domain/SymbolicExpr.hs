@@ -1,9 +1,10 @@
-module Domain.SymbolicExpr (SymbolicExpr(..)) where
+module Domain.SymbolicExpr (SymbolicExpr(..), fromTerm) where
 
-import Data.SBV
-
-import Domain.Class
-import Domain.Term
+import           Data.SBV (SBV, freshVar)
+import           Data.SBV.Control (Query)
+import           Domain.Class
+import           Domain.Term
+import qualified Domain.Term as T
 
 -- | We couple the SBV representation with the term representation for
 -- symolic execution. In theory, we could get away without using the term
@@ -32,4 +33,32 @@ instance DomainValue SymbolicExpr where
     lt    (SymbolicExpr a1 b1) (SymbolicExpr a2 b2) = SymbolicExpr (lt a1 a2) (lt b1 b2)
     dOr   (SymbolicExpr a1 b1) (SymbolicExpr a2 b2) = SymbolicExpr (dOr a1 a2) (dOr b1 b2)
     dAnd  (SymbolicExpr a1 b1) (SymbolicExpr a2 b2) = SymbolicExpr (dAnd a1 a2) (dAnd b1 b2)
+
+
+fromTerm :: DomainTerm a -> Query (SymbolicExpr a)
+fromTerm t@(IntVar n) = do v <- (freshVar n)
+                           pure $ SymbolicExpr v t
+fromTerm t@(BoolVar n) = do v <- (freshVar n)
+                            pure $ SymbolicExpr v t
+
+fromTerm (IntLit i) = pure $ dInteger i
+fromTerm (Add a)    = do args <- (mapM fromTerm a)
+                         pure $ foldl' dAdd (dInteger 0) args
+fromTerm (Mul a b)  = fromTermBin dMul a b
+fromTerm (Div a b)  = fromTermBin dDiv a b
+
+fromTerm (BoolLit i) = pure $ dBool i
+fromTerm (And a b) = fromTermBin dAnd a b
+fromTerm (Or a b) = fromTermBin dOr a b
+fromTerm (NEq a b) = fromTermBin dNEq a b
+fromTerm (Not a) = do a' <- fromTerm a
+                      pure $ dNot a'
+fromTerm (T.LT a b) = fromTermBin lt a b
+
+fromTermBin ::   (SymbolicExpr a -> SymbolicExpr b -> SymbolicExpr c)
+               -> DomainTerm a -> DomainTerm b
+               -> Query (SymbolicExpr c)
+fromTermBin f a b = do a' <- fromTerm a
+                       b' <- fromTerm b
+                       pure $ f a' b'
 
