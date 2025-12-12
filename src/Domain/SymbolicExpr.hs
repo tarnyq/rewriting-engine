@@ -30,7 +30,7 @@ instance DomainValue SymbolicExpr where
     dBool l = SymbolicExpr (dBool l) (dBool l)
     dNEq  (SymbolicExpr a1 b1) (SymbolicExpr a2 b2) = SymbolicExpr (dNEq a1 a2) (dNEq b1 b2)
     dNot  (SymbolicExpr a b) = SymbolicExpr (dNot a) (dNot b)
-    lt    (SymbolicExpr a1 b1) (SymbolicExpr a2 b2) = SymbolicExpr (lt a1 a2) (lt b1 b2)
+    dLt    (SymbolicExpr a1 b1) (SymbolicExpr a2 b2) = SymbolicExpr (dLt a1 a2) (dLt b1 b2)
     dOr   (SymbolicExpr a1 b1) (SymbolicExpr a2 b2) = SymbolicExpr (dOr a1 a2) (dOr b1 b2)
     dAnd  (SymbolicExpr a1 b1) (SymbolicExpr a2 b2) = SymbolicExpr (dAnd a1 a2) (dAnd b1 b2)
 
@@ -53,7 +53,7 @@ fromTerm (Or a b) = fromTermBin dOr a b
 fromTerm (NEq a b) = fromTermBin dNEq a b
 fromTerm (Not a) = do a' <- fromTerm a
                       pure $ dNot a'
-fromTerm (T.LT a b) = fromTermBin lt a b
+fromTerm (T.LT a b) = fromTermBin dLt a b
 
 fromTermBin ::   (SymbolicExpr a -> SymbolicExpr b -> SymbolicExpr c)
                -> DomainTerm a -> DomainTerm b

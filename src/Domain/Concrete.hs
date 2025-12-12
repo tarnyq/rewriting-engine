@@ -13,7 +13,7 @@ instance DomainValue ConcreteValue where
 
     dBool    = CV
     dNEq a b = CV $ (unwrap a) /=  (unwrap b)
-    lt   a b = CV $ (unwrap a) <  (unwrap b)
+    dLt   a b = CV $ (unwrap a) <  (unwrap b)
     dAnd a b = CV $ (unwrap a) && (unwrap b)
     dOr  a b = CV $ (unwrap a) || (unwrap b)
     dNot a   = CV $ not (unwrap a)

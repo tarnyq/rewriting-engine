@@ -20,12 +20,12 @@ class DomainValue repr where
 
     dBool     :: Bool -> repr Bool
     dNEq      :: repr Integer -> repr Integer -> repr Bool
-    lt        :: repr Integer -> repr Integer -> repr Bool
+    dLt        :: repr Integer -> repr Integer -> repr Bool
     dAnd      :: repr Bool -> repr Bool -> repr Bool
     dOr       :: repr Bool -> repr Bool -> repr Bool
     dNot      :: repr Bool -> repr Bool
 
-    {-# MINIMAL dInteger, dAdd, dMul, dDiv, dBool, dNEq, lt, dAnd, dOr, dNot #-}
+    {-# MINIMAL dInteger, dAdd, dMul, dDiv, dBool, dNEq, dLt, dAnd, dOr, dNot #-}
 
 
 -- | We use SBV to represent symbolic values that maybe sent to the SMT solver.
@@ -41,7 +41,7 @@ instance DomainValue SBV where
 
     dBool    = literal
     dNEq     = (./=)
-    lt       = (.<)
+    dLt       = (.<)
     dAnd     = (.&&)
     dOr      = (.||)
     dNot     = sNot

@@ -56,7 +56,7 @@ instance DomainValue DomainTerm where
 
     dBool       = BoolLit
     dNEq        = NEq
-    lt          = Domain.Term.LT
+    dLt          = Domain.Term.LT
 
     dAnd (BoolLit True) b = b
     dAnd a (BoolLit True) = a

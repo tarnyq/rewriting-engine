@@ -272,7 +272,7 @@ leCoolR = do ((KI_AExp (Int i)):(KI_BExp (lhs :<= AHole)):rest) <- getK
 
 le :: MonadRewrite m dv (State dv) => m ()
 le = do (KI_BExp (Int i :<= Int j)):rest <- getK
-        putK $ (KI_BExp (Bool (lt i j))):rest
+        putK $ (KI_BExp (Bool (dLt i j))):rest
 
 addHeatL :: MonadRewrite m dv (State dv) => m ()
 addHeatL = do ((KI_AExp (lhs :+ rhs)):rest) <- getK
