@@ -1,5 +1,9 @@
-module Domain.Class (DomainValue(..)) where
+{-# LANGUAGE RankNTypes #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 
+module Domain.Class (DomainValue(..), DomainFunctor(..)) where
+
+import Control.Monad.Identity
 import Data.SBV
 
 -- | We need a concrete, abstract and symbolic representations for domain values.
@@ -27,9 +31,19 @@ class DomainValue repr where
 
     {-# MINIMAL dInteger, dAdd, dMul, dDiv, dBool, dNEq, dLt, dAnd, dOr, dNot #-}
 
+-- Allows mapping from one Domain representation to another.
+-- Each language's state must implement this to allow algorithms such
+-- as summarization.
+class DomainFunctor st where
+    dmap :: forall dv1 dv2. (forall a. dv1 a -> dv2 a) -> st dv1 -> st dv2
+    dmap f s = runIdentity (dmapM f' s)         where
+        f' :: dv1 a -> Identity (dv2 a)
+        f' a = Identity (f a)
+    dmapM :: Monad m => (forall a. dv1 a -> m (dv2 a)) -> st dv1 -> m (st dv2)
+
+    {-# MINIMAL dmapM #-}
 
 -- | We use SBV to represent symbolic values that maybe sent to the SMT solver.
-
 -- This needs to be here, to prevent orphan instance warning.
 instance DomainValue SBV where
     dInteger = literal
@@ -41,9 +55,7 @@ instance DomainValue SBV where
 
     dBool    = literal
     dNEq     = (./=)
-    dLt       = (.<)
+    dLt      = (.<)
     dAnd     = (.&&)
     dOr      = (.||)
     dNot     = sNot
-
-

@@ -1,4 +1,7 @@
-module Domain.SymbolicExpr (SymbolicExpr(..), fromTerm) where
+{-# LANGUAGE KindSignatures #-}
+{-# LANGUAGE RankNTypes #-}
+
+module Domain.SymbolicExpr (SymbolicExpr(..), fromTerm, DomainFunctor(..)) where
 
 import           Data.SBV (SBV, freshVar)
 import           Data.SBV.Control (Query)
