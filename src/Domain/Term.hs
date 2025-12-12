@@ -18,6 +18,8 @@ data DomainTerm a where
     IntLit  :: Integer -> DomainTerm Integer
     IntVar  :: String -> DomainTerm Integer
     Add     :: [DomainTerm Integer] -> DomainTerm Integer
+
+    -- TODO: All commutative operators should use Lists
     Mul     :: DomainTerm Integer -> DomainTerm Integer -> DomainTerm Integer
     Div     :: DomainTerm Integer -> DomainTerm Integer -> DomainTerm Integer
 
