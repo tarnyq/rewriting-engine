@@ -14,7 +14,7 @@ import qualified Domain.Term as T
 -- Without this, however, very simple expectations become impossible, such
 -- as printing the result after symbolic execution.
 
-data SymbolicExpr a = SymbolicExpr { sbv :: SBV a, term :: DomainTerm a }
+data SymbolicExpr a = SymbolicExpr { sbv :: SBV a, term :: Term a }
 
 instance Show (SymbolicExpr a) where
   show exp = show $ term exp
@@ -35,7 +35,7 @@ instance DomainValue SymbolicExpr where
     dAnd  (SymbolicExpr a1 b1) (SymbolicExpr a2 b2) = SymbolicExpr (dAnd a1 a2) (dAnd b1 b2)
 
 
-fromTerm :: DomainTerm a -> Query (SymbolicExpr a)
+fromTerm :: Term a -> Query (SymbolicExpr a)
 fromTerm t@(IntVar n) = do v <- (freshVar n)
                            pure $ SymbolicExpr v t
 fromTerm t@(BoolVar n) = do v <- (freshVar n)
@@ -56,7 +56,7 @@ fromTerm (Not a) = do a' <- fromTerm a
 fromTerm (T.LT a b) = fromTermBin dLt a b
 
 fromTermBin ::   (SymbolicExpr a -> SymbolicExpr b -> SymbolicExpr c)
-               -> DomainTerm a -> DomainTerm b
+               -> Term a -> Term b
                -> Query (SymbolicExpr c)
 fromTermBin f a b = do a' <- fromTerm a
                        b' <- fromTerm b

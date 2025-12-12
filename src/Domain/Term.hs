@@ -1,4 +1,4 @@
-module Domain.Term (DomainTerm(..)) where
+module Domain.Term (Term(..)) where
 
 import Domain.Class
 
@@ -14,28 +14,28 @@ import Domain.Class
 -- to evaluate concrete subexpressions. Eventually, we may want to split this
 -- functionality into a separate utility.
 
-data DomainTerm a where
-    IntLit  :: Integer -> DomainTerm Integer
-    IntVar  :: String -> DomainTerm Integer
-    Add     :: [DomainTerm Integer] -> DomainTerm Integer
+data Term a where
+    IntLit  :: Integer -> Term Integer
+    IntVar  :: String -> Term Integer
+    Add     :: [Term Integer] -> Term Integer
 
     -- TODO: All commutative operators should use Lists
-    Mul     :: DomainTerm Integer -> DomainTerm Integer -> DomainTerm Integer
-    Div     :: DomainTerm Integer -> DomainTerm Integer -> DomainTerm Integer
+    Mul     :: Term Integer -> Term Integer -> Term Integer
+    Div     :: Term Integer -> Term Integer -> Term Integer
 
-    BoolLit :: Bool -> DomainTerm Bool
-    BoolVar :: String -> DomainTerm Bool
-    NEq     :: DomainTerm Integer -> DomainTerm Integer -> DomainTerm Bool
-    LT      :: DomainTerm Integer -> DomainTerm Integer -> DomainTerm Bool
-    And     :: DomainTerm Bool -> DomainTerm Bool -> DomainTerm Bool
-    Or      :: DomainTerm Bool -> DomainTerm Bool -> DomainTerm Bool
-    Not     :: DomainTerm Bool -> DomainTerm Bool
+    BoolLit :: Bool -> Term Bool
+    BoolVar :: String -> Term Bool
+    NEq     :: Term Integer -> Term Integer -> Term Bool
+    LT      :: Term Integer -> Term Integer -> Term Bool
+    And     :: Term Bool -> Term Bool -> Term Bool
+    Or      :: Term Bool -> Term Bool -> Term Bool
+    Not     :: Term Bool -> Term Bool
 
-deriving instance Show (DomainTerm a)
-deriving instance Eq (DomainTerm a)
+deriving instance Show (Term a)
+deriving instance Eq (Term a)
 
 
-instance DomainValue DomainTerm where
+instance DomainValue Term where
 
     dInteger  = IntLit
 

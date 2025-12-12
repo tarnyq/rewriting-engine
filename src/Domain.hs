@@ -1,6 +1,6 @@
 module Domain
     ( ConcreteValue(..)
-    , DomainTerm
+    , Term
     , DomainValue(..)
     , SymbolicExpr(..)
     )

@@ -24,7 +24,7 @@ import HandOptImp
 -- to import all this.
 import SymbolicImp
 import Rewrite.Symbolic
-import Domain.Term (DomainTerm(..))
+import Domain.Term (Term(..))
 import Control.Monad.IO.Class (liftIO)
 
 main :: IO ()
