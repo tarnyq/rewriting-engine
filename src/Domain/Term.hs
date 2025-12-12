@@ -31,8 +31,15 @@ data DomainTerm a where
 
 deriving instance Show (DomainTerm a)
 
+
 instance DomainValue DomainTerm where
+
     dInteger  = IntLit
+
+    -- TODO: For now, we hand-write some simplifications. Note that these
+    -- simplifications are not passed on to the SMT solver, and are only
+    -- useful for debugging, and when the expression makes a round-trip
+    -- via de/serialization.
     dAdd (IntLit 0) n = n
     dAdd (IntLit n) (IntLit m) = (IntLit $ m+n)
     dAdd (Add ((IntLit m):rest)) (IntLit n) = Add ((IntLit $ m+n):rest)
@@ -47,8 +54,13 @@ instance DomainValue DomainTerm where
     dBool       = BoolLit
     dNEq        = NEq
     lt          = Domain.Term.LT
-    dAnd        = And
+
+    dAnd (BoolLit True) b = b
+    dAnd a (BoolLit True) = a
+    dAnd a b    = And a b
+
     dOr         = Or
-    dNot        = Not
 
-
+    dNot (BoolLit False) = (BoolLit True)
+    dNot (Not a) = a
+    dNot a      = Not a
