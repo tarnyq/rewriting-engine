@@ -1,3 +1,4 @@
+{-# LANGUAGE OverloadedStrings #-}
 module KTutImpTest (tests) where
 
 import Test.Tasty
@@ -42,6 +43,9 @@ tests = testGroup "KTutImp Tests"
       , testCase "SumToN Fail" $
               (eval_imp_io_pure sum_imp_io [])
           @?= (State stuck_read (fromList [("n",0),("sum",0)]), ProgramIOState [] [])
+      , testCase "SumToN-IO Parse" $
+              (parse_imp_io' sum_imp_io_text)
+          @?= sum_imp_io
     ]
   ]
   where stuck_read = [KI_AExp Read
@@ -53,3 +57,11 @@ tests = testGroup "KTutImp Tests"
                                         ("n" := (Var "n" :+ Negate 1)))))
                      , KI_Stmts (Print (Var "sum"))
                      ]
+        sum_imp_io_text =  "var n, sum; \
+                          \ n = read; \
+                          \ sum = 0; \
+                          \ while (!(n < 0)) { \
+                          \   sum = sum + n; \
+                          \   n = n - 1; \
+                          \ } \
+                          \ print(n);"

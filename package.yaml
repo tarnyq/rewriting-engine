@@ -78,7 +78,7 @@ library:
     - src/experiment/
     - semantics/
     - program/
-  dependencies:         [tasty, tasty-hunit]
+  dependencies:         [filepath, tasty, tasty-hunit, text]
 
 executables:
   hello:

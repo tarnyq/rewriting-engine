@@ -32,12 +32,16 @@ module KTutImp (
     , eval_sum_summary                  -- summarized semantics.
     , eval_imp_io_pure, eval_imp_io     -- IO-enabled versions of KTutImp.
 
+    -- parser
+    , parse_imp_io'
     ) where
 
-import Prelude hiding (negate, div)
+import Prelude hiding (negate, div, readFile)
 import qualified Prelude (div)
 
 import Data.Map (Map, findWithDefault, fromList, insert, member)
+import Data.Text (Text)
+import Data.Text.IO (readFile)
 
 import Rewrite.Class
 import Rewrite.Basic
@@ -143,6 +147,7 @@ deriving instance Eq Block
 deriving instance Eq Stmts
 deriving instance Eq KItem
 deriving instance Eq State
+deriving instance Eq Pgm
 
 ----------------------------------------------------------------------
 -- Initialization
@@ -533,3 +538,16 @@ eval_imp_io_pure pgm input = evalOnePathIOPure imp_io (impInitState pgm) input
 
 eval_imp_io :: Pgm -> IO State
 eval_imp_io pgm = evalOnePathIO imp_io (impInitState pgm)
+
+
+----------------------------------------------------------------------
+-- Parsing
+
+parse_imp_io :: FilePath -> IO Pgm
+parse_imp_io path = do
+  text <- readFile path
+  pure $ parse_imp_io' text
+
+parse_imp_io' :: Text -> Pgm
+parse_imp_io' = undefined
+
