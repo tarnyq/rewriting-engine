@@ -74,7 +74,7 @@ evalOnePath rewrites state = unwrap $ applyRewrite eval' state
     -- a failure. This tail recurses (we think) on eval'.
     eval' :: RewriteBasic s ()
     eval' =     (next >> eval') -- If next succeeds, recurse
-            <|> pure ()         -- otherwise return the previous state
+            <|> pure ()         -- otherwise return the current state
 
     -- Apply rewrites in parallel; Choose first that applies
     next :: RewriteBasic s ()

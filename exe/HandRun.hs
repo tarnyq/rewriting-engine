@@ -54,6 +54,9 @@ main = do
                     (Constrained (SymbolicImp.impInitState $ sum_imp_symbolic (IntLit 10))
                                  (dLt (IntLit 10) (IntVar "n")))
                print $ map state cstate
+        ["symbolic", "summarize"]  ->
+            do _cstate <- summarize_imp $ sum_imp_symbolic (IntVar "n")
+               pure ()
         _ {- Bad Arguments -}   -> do
             hPutStrLn stderr $ "Bad args: " ++ show args
             exitFailure

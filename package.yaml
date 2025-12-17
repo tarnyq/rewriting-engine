@@ -39,11 +39,12 @@ default-extensions:         # Enabled in every module.
   - NamedFieldPuns          # Foo{blah} for Foo{blah=blah}.
   - FlexibleContexts        # More complex constraints. E.g.: `Eq [a]`
   - FlexibleInstances
-  - MultiParamTypeClasses
-  - GeneralizedNewtypeDeriving
   - FunctionalDependencies
-  - TypeApplications
   - GADTs
+  - GeneralizedNewtypeDeriving
+  - InstanceSigs
+  - MultiParamTypeClasses
+  - TypeApplications
 
 #   This is essentialy just documentation of what LANGUAGE pragmas we use.
 other-extensions: []
@@ -78,7 +79,7 @@ library:
     - src/experiment/
     - semantics/
     - program/
-  dependencies:         [tasty, tasty-hunit]
+  dependencies:         [tasty, tasty-hunit, mtl, transformers]
 
 executables:
   hello:

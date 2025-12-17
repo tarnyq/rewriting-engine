@@ -1,31 +1,31 @@
-{-# LANGUAGE RankNTypes #-}
-
 module Rewrite.Symbolic
     ( DomainValue(..)
-    , Constrained(..), SymBool, SymInteger
+    , Constrained(..)
+    , RewriteSymbolic(..)
     , SymbolicExpr(..)
     , evalAllPathsSymbolic
     )
   where
 
-import Control.Applicative
-import Control.Monad
-import Control.Monad.Extra (concatMapM)
-import Data.Maybe
-import Data.SBV
-import Data.SBV.Control
+import           Control.Applicative
+import           Control.Monad
+import           Control.Monad.Extra (concatMapM)
+import           Data.Maybe
+import           Data.SBV
+import           Data.SBV.Trans.Control
 
-import Rewrite.Class
-import Domain
-import Domain.Class
-import Domain.SymbolicExpr (fromTerm)
+import           Domain
+import           Domain.Class
+import           Domain.SymbolicExpr (fromTerm)
+import           Rewrite.Class
 
-
-type SymInteger = SymbolicExpr Integer
-type SymBool = SymbolicExpr Bool
 data Constrained s dv =
         Constrained { state :: (s dv), constraint :: (dv Bool) }
-instance DomainFunctor s => DomainFunctor (Constrained s) where
+instance DomainFunctor s => DomainFunctor (Constrained s)   where
+    dmapM f s = Constrained <$>  (dmapM f $ state s) <*> (f $ constraint s)
+deriving instance (Show (s dv), Show (dv Bool)) => Show (Constrained s dv)
+deriving instance (Eq (s dv), Eq (dv Bool)) => Eq (Constrained s dv)
+deriving instance (Ord (s dv), Ord (dv Bool)) => Ord (Constrained s dv)
 
 
 newtype RewriteSymbolic s a =
@@ -71,45 +71,56 @@ evalAllPathsSymbolic rewrites cstate
             symState <- dmapM fromTerm cstate
             result <- eval' symState
             pure $ map (dmap term) result
-
   where
     eval' :: Constrained s SymbolicExpr -> Query [Constrained s SymbolicExpr]
+    -- We split off the expr from cond so that we do not need to repeatedly
+    -- assert the entire path condition, rather, only the incremental addition.
     eval' (Constrained s (SymbolicExpr cond expr))
-        = case unliteral cond of Just True -> satCase (s, cond, expr)
-                                 _         -> checkWithSolver (s, cond, expr)
-    checkWithSolver (s, cond, expr) = inNewAssertionStack $
+          -- case analysis to avoid calling into the sat solver
+          -- when unnessesary.
+        = case unliteral cond of Just True -> satCase s expr
+                                 _         -> checkWithSolver s cond expr
+    checkWithSolver s cond expr = inNewAssertionStack $
         do constrain cond
            res <- checkSat
            case res of
+               Sat -> satCase s expr
+               Unsat -> pure []
                Unk -> error "Solver returned unknown!"
-               Sat -> satCase (s, cond, expr)
-               _   -> pure []
+               DSat _ -> error "Solver returned DSat?!"
 
-    satCase (s, _cond, expr) =
+    satCase s expr = inNewAssertionStack $
         do -- Since we already asserted the condition in this Query context,
            -- we do not need that as part of the Constrained for continued
            -- execution.
            let ns = nexts (Constrained s (SymbolicExpr sTrue expr))
-           recurse <- concatMapM eval' ns
+           terminals <- concatMapM eval' ns
 
            -- If the branch conditions of all next states is not total,
            -- we also need to consider the residue, i.e. the negation
            -- of the disjunction of all the path conditions returned
            -- by next.
-           constrain $ (sbv . constraint) (residue ns s)
+           let residue = mkResidue ns s
+           constrain $ (sbv . constraint) residue
+           let expr' = dAnd ((term.constraint) residue) expr
+           let constr' = (SymbolicExpr
+                        ((sbv.constraint) residue)
+                        (expr'))
+           let residue' = residue { constraint=constr' }
            res <- checkSat
 
-           case res of Sat -> pure $ (residue ns s):recurse
+           case res of Sat -> pure $ residue':terminals
+                       Unsat -> pure terminals
                        Unk -> error "Solver returned unknown!"
-                       _   -> pure recurse
+                       DSat _ -> error "Solver returned DSat?!"
 
     --  At each step next gives all new states derived from a single input
     --  state.
     nexts :: Constrained s SymbolicExpr -> [Constrained s SymbolicExpr]
     nexts s = (nexts' rewrites s)
 
-    residue :: [Constrained s SymbolicExpr] -> (s SymbolicExpr) -> Constrained s SymbolicExpr
-    residue ss s =
+    mkResidue :: [Constrained s SymbolicExpr] -> (s SymbolicExpr) -> Constrained s SymbolicExpr
+    mkResidue ss s =
         Constrained s (dNot $ foldl' (dOr) (dBool False) (fmap constraint ss))
 
     nexts' :: [RewriteSymbolic s ()]
@@ -119,5 +130,4 @@ evalAllPathsSymbolic rewrites cstate
     nexts' (rw:rws) s
         = let thisrw = maybeToList (fmap snd ((rewriterSymbolic rw) s))
           in thisrw ++ (nexts' rws s)
-
 

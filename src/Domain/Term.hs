@@ -33,6 +33,7 @@ data Term a where
 
 deriving instance Show (Term a)
 deriving instance Eq (Term a)
+deriving instance Ord (Term a)
 
 
 instance DomainValue Term where

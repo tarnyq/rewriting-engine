@@ -10,18 +10,27 @@ module SymbolicImp (
       impInitState
     , evalAllPaths_imp_symbolic                 -- interpreters
     , evalOnePath_imp_symbolic
+    , summarize_imp
     , sum_imp_symbolic                          -- sample programs
     ) where
 
-import Prelude hiding (negate)
-import           Data.Map (Map, findWithDefault, fromList, insert, member)
+import           Prelude hiding (negate)
+
+import           Control.Monad (foldM)
+import           Control.Monad.Trans.Maybe
+import           Data.Map (Map, findWithDefault, fromList,
+                          insert, member, fromAscList, keys, toAscList, unionWith)
 import qualified Data.Map as M
 
-import Rewrite.Class
-import Rewrite.Symbolic
-import Rewrite.Basic
-import Domain
-import Domain.SymbolicExpr
+import           Data.Traversable (sequence)
+
+import           Rewrite.Class
+import           Rewrite.Symbolic
+import           Rewrite.Summarization
+import           Rewrite.Basic
+import           Domain
+import           Domain.SymbolicExpr
+import           Domain.Term (Term(IntVar))
 
 
 {----------------------------------------------------------------------
@@ -61,6 +70,7 @@ data AExp dv = Int (dv Integer)
              | AHole
 deriving instance (Show (dv Integer), Show (dv Bool)) => Show (AExp dv)
 deriving instance (Eq (dv Integer), Eq (dv Bool)) => Eq (AExp dv)
+deriving instance (Ord (dv Integer), Ord (dv Bool)) => Ord (AExp dv)
 instance DomainFunctor AExp     where
     dmapM f (Int v) = do v' <- f v
                          pure $ Int  v'
@@ -85,6 +95,8 @@ data BExp dv = Bool (dv Bool)
              | (BExp dv) :&& (BExp dv)
              | BHole             -- As per AHole above.
 deriving instance (Show (dv Integer), Show (dv Bool)) => Show (BExp dv)
+deriving instance (Eq (dv Integer), Eq (dv Bool)) => Eq (BExp dv)
+deriving instance (Ord (dv Integer), Ord (dv Bool)) => Ord (BExp dv)
 instance DomainFunctor BExp     where
     dmapM f (Bool v) = do v' <- f v
                           pure $ Bool  v'
@@ -103,6 +115,8 @@ instance DomainFunctor BExp     where
 data Block dv = StmtsBlock (Stmts  dv) -- Renamed from 'Stmt' in KTutImp
               | EmptyBlock
 deriving instance (Show (dv Integer), Show (dv Bool)) => Show (Block dv)
+deriving instance (Eq (dv Integer), Eq (dv Bool)) => Eq (Block dv)
+deriving instance (Ord (dv Integer), Ord (dv Bool)) => Ord (Block dv)
 instance DomainFunctor Block    where
     dmapM _ EmptyBlock = pure EmptyBlock
     dmapM f (StmtsBlock v)
@@ -116,6 +130,8 @@ data Stmts dv = Block (Block dv)
              | StPair (Stmts dv) (Stmts dv)
              | Print (AExp dv)      -- Only given a semantics in 'imp_io'
 deriving instance (Show (dv Integer), Show (dv Bool)) => Show (Stmts dv)
+deriving instance (Eq (dv Integer), Eq (dv Bool)) => Eq (Stmts dv)
+deriving instance (Ord (dv Integer), Ord (dv Bool)) => Ord (Stmts dv)
 instance DomainFunctor Stmts    where
     dmapM f (Block v) = do v' <- dmapM f v
                            pure $ Block v'
@@ -169,6 +185,8 @@ mkStmts stmtList = statements (reverse stmtList)  where
 
 data State dv = State { k :: K dv, store :: Store dv}
 deriving instance (Show (dv Integer), Show (dv Bool)) => Show (State dv)
+deriving instance (Eq (dv Integer), Eq (dv Bool)) => Eq (State dv)
+deriving instance (Ord (dv Integer), Ord (dv Bool)) => Ord (State dv)
 instance DomainFunctor State    where
     dmapM f st = do k' <- sequence $ fmap (\ki -> dmapM f ki) (k st)
                     store' <- mapM f (store st)
@@ -180,6 +198,8 @@ data KItem dv = KI_Stmts (Stmts dv)
               | KI_AExp (AExp dv)
               | KI_BExp (BExp dv)
 deriving instance (Show (dv Integer), Show (dv Bool)) => Show (KItem dv)
+deriving instance (Eq (dv Integer), Eq (dv Bool)) => Eq (KItem dv)
+deriving instance (Ord (dv Integer), Ord (dv Bool)) => Ord (KItem dv)
 instance DomainFunctor KItem    where
     dmapM f (KI_Stmts s) = do s' <- dmapM f s
                               pure $ KI_Stmts s'
@@ -237,13 +257,14 @@ isReducedBExp _         = False
 ----------------------------------------------------------------------
 -- Rules
 
-imp_symbolic :: MonadRewrite m dv (State dv) =>  [m ()]
-{-# INLINE imp_symbolic #-}
-imp_symbolic =
+cutpoint_rules :: MonadRewrite m dv (State dv) =>  [m ()]
+cutpoint_rules = [ while ]
+{-# INLINE cutpoint_rules #-}
+ordinary_rules :: MonadRewrite m dv (State dv) =>  [m ()]
+ordinary_rules =
         [ assignHeat, assignCool, assign
         , lookupVar
         , seqStmt
-        , while
         , ifHeat, ifCool, ifT, ifF
         , notHeat, notCool, notBExp
         , leHeatL, leCoolL, leHeatR, leCoolR , le
@@ -253,6 +274,10 @@ imp_symbolic =
         , block
         , emptyBlock
         ]
+{-# INLINE ordinary_rules #-}
+imp_symbolic :: MonadRewrite m dv (State dv) =>  [m ()]
+imp_symbolic = ordinary_rules ++ cutpoint_rules
+{-# INLINE imp_symbolic #-}
 
 seqStmt :: MonadRewrite m dv (State dv) => m ()
 seqStmt = do ((KI_Stmts (StPair s1 s2)):rest) <- getK
@@ -412,7 +437,6 @@ emptyBlock = do ((KI_Stmts (Block EmptyBlock)):rest) <- getK
 --  and evaluate them all for you.)
 
 sum_imp_symbolic :: DomainValue dv => (dv Integer) -> (Pgm dv)
-                                                            --  'sum.imp'
 sum_imp_symbolic n = Pgm ids stmts  where
     ids   = ["n", "sum"]                                    --  int n, sum
     stmts = mkStmts                                         --
@@ -434,3 +458,68 @@ evalAllPaths_imp_symbolic cstate = evalAllPathsSymbolic imp_symbolic cstate
 evalOnePath_imp_symbolic :: (Pgm ConcreteValue) -> State ConcreteValue
 evalOnePath_imp_symbolic pgm = evalOnePath imp_symbolic $ impInitState pgm
 
+
+instance Summarizable State     where
+    basicRules = ordinary_rules
+    cutRules = cutpoint_rules
+
+    merge :: State Term -> State Term -> MonadSummary State (Maybe (State Term))
+    merge s1 s2 | s1 == s2 = pure $ Just s1
+    merge (State {k = k1, store = store1})
+               (State {k = k2, store = store2})
+         |     k1 == k2
+        = runMaybeT $ do
+            store' <- MaybeT $ mergeNodesStore store1 store2
+            pure $ State { k = k1 , store=store' }
+    merge _ _ = pure Nothing
+
+    isCovered :: State Term -> State Term -> Maybe Subst
+    isCovered (State {k = k1, store = store1})
+              (State {k = k2, store = store2})
+         |    k1 == k2
+        = isCoveredStore store1 store2
+    isCovered _ _ = Nothing
+
+
+mergeNodesStore :: Store Term -> Store Term -> MonadSummary s (Maybe (Store Term))
+mergeNodesStore store1 store2 | (keys store1) == (keys store2)
+ = runMaybeT $ do
+      let (k1, v1) = (unzip.toAscList) store1
+      let (_k, v2) = (unzip.toAscList) store2
+      let vs = zip v1 v2
+      vs' <- mapM (maybeT2 $ uncurry mergeNodesIntegers) vs
+      pure $ fromAscList (zip k1 vs')
+mergeNodesStore _ _ = pure Nothing
+
+maybeT2 :: (a -> MonadSummary s (Maybe b)) -> a -> MonadSummaryMaybe s b
+maybeT2 f = \a -> MaybeT $ f a
+
+mergeNodesIntegers :: Term Integer -> Term Integer -> MonadSummary s (Maybe (Term Integer))
+mergeNodesIntegers v1 v2 | v1 == v2 = pure $ Just v1
+mergeNodesIntegers _  _             = Just . IntVar <$> freshName
+
+unionWithM :: (Monad m, Ord k) => (a -> a -> m a) -> Map k a -> Map k a -> m (Map k a)
+unionWithM f ma mb = Data.Traversable.sequence $ unionWith
+        (\a b -> do {x <- a; y <- b; f x y})
+        (fmap pure ma)
+        (fmap pure mb)
+
+isCoveredStore :: Store Term -> Store Term -> Maybe Subst
+isCoveredStore store1 store2 | (keys store1) == (keys store2)
+  = do let (_, v1) = (unzip.toAscList) store1
+       let (_, v2) = (unzip.toAscList) store2
+       let vs = zip v1 v2
+       foldM f M.empty vs
+  where
+    f :: Subst -> (Term Integer, Term Integer) -> Maybe Subst
+    f a (b1, b2) = do x <- (isCoveredIntegers b1 b2)
+                      unionWithM (\_ _ -> fail "") a x
+isCoveredStore _ _ = fail "Cannot cover states"
+
+isCoveredIntegers :: Term Integer -> Term Integer -> Maybe Subst
+isCoveredIntegers (IntVar v1) v2 = pure $ fromList [(v1, SomeDomainTerm v2)]
+isCoveredIntegers _ _ = fail undefined
+
+summarize_imp :: (Pgm Term) -> IO (SummaryState State)
+summarize_imp pgm = do
+    summarize $ impInitState pgm

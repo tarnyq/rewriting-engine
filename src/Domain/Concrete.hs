@@ -20,4 +20,3 @@ instance DomainValue ConcreteValue where
 
 deriving instance (Show a) => Show (ConcreteValue a)
 
-
