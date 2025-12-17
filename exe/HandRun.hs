@@ -14,7 +14,6 @@ module Main (main) where
 import System.Environment (getArgs)
 import System.Exit (exitFailure)
 import System.IO (hPutStrLn, stderr)
-import Data.SBV
 
 import KTutImp
 import KTutImp_Program
@@ -44,17 +43,18 @@ main = do
                         $ sum_imp_symbolic (dInteger (read n))
         -- Run sum on all-paths, using the "symbolic" semantics with SymbolicExpr
         ["symbolic", "srunsum", n] ->
-             runSMT $ do cstate <- evalAllPaths_imp_symbolic $
-                                     sum_imp_symbolic $ dInteger (read n)
-                         liftIO $ print $ map state cstate
+             do cstate <- evalAllPaths_imp_symbolic $
+                            Constrained (SymbolicImp.impInitState $ sum_imp_symbolic $ dInteger (read n))
+                                        (dBool True)
+                liftIO $ print $ map state cstate
 
         -- Return terminal states for sum-to-n, where N < 10
         ["symbolic", "lt10"]  ->
-             runSMT $ do n <- sInteger "n"
-                         constrain $ n .< 10
-                         cstate <- evalAllPaths_imp_symbolic $
-                                     sum_imp_symbolic (SymbolicExpr n (IntVar "n"))
-                         liftIO $ print $ map state cstate
+            do cstate <- evalAllPaths_imp_symbolic $
+                    (Constrained (SymbolicImp.impInitState $ sum_imp_symbolic (IntLit 10))
+                                 (dLt (IntLit 10) (IntVar "n")))
+               print $ map state cstate
         _ {- Bad Arguments -}   -> do
             hPutStrLn stderr $ "Bad args: " ++ show args
             exitFailure
+

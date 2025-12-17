@@ -7,13 +7,13 @@
 {-# LANGUAGE UndecidableInstances #-}
 
 module SymbolicImp (
-      evalAllPaths_imp_symbolic                 -- interpreters
+      impInitState
+    , evalAllPaths_imp_symbolic                 -- interpreters
     , evalOnePath_imp_symbolic
     , sum_imp_symbolic                          -- sample programs
     ) where
 
 import Prelude hiding (negate)
-import Data.SBV (Symbolic)
 import           Data.Map (Map, findWithDefault, fromList, insert, member)
 import qualified Data.Map as M
 
@@ -22,7 +22,6 @@ import Rewrite.Symbolic
 import Rewrite.Basic
 import Domain
 import Domain.SymbolicExpr
-import Domain.Class
 
 
 {----------------------------------------------------------------------
@@ -429,8 +428,8 @@ sum_imp_symbolic n = Pgm ids stmts  where
 ---------------------------------------------------------------------
 -- Analyses
 
-evalAllPaths_imp_symbolic :: (Pgm SymbolicExpr) -> Symbolic [Constrained (State SymbolicExpr)]
-evalAllPaths_imp_symbolic pgm = evalAllPathsSymbolic imp_symbolic $ impInitState pgm
+evalAllPaths_imp_symbolic :: Constrained State Term -> IO [Constrained State Term]
+evalAllPaths_imp_symbolic cstate = evalAllPathsSymbolic imp_symbolic cstate
 
 evalOnePath_imp_symbolic :: (Pgm ConcreteValue) -> State ConcreteValue
 evalOnePath_imp_symbolic pgm = evalOnePath imp_symbolic $ impInitState pgm

@@ -1,3 +1,5 @@
+{-# LANGUAGE RankNTypes #-}
+
 module Rewrite.Symbolic
     ( DomainValue(..)
     , Constrained(..), SymBool, SymInteger
@@ -15,16 +17,20 @@ import Data.SBV.Control
 
 import Rewrite.Class
 import Domain
+import Domain.Class
+import Domain.SymbolicExpr (fromTerm)
 
 
 type SymInteger = SymbolicExpr Integer
 type SymBool = SymbolicExpr Bool
-data Constrained s =
-        Constrained { state :: s, constraint :: (SymbolicExpr Bool) }
+data Constrained s dv =
+        Constrained { state :: (s dv), constraint :: (dv Bool) }
+instance DomainFunctor s => DomainFunctor (Constrained s) where
+
 
 newtype RewriteSymbolic s a =
     RewriteSymbolic {
-        rewriterSymbolic :: (Constrained s) -> Maybe (a, Constrained s)
+        rewriterSymbolic :: (Constrained s SymbolicExpr) -> Maybe (a, Constrained s SymbolicExpr)
     } deriving Functor
 
 instance Applicative (RewriteSymbolic s) where
@@ -47,7 +53,7 @@ instance Alternative (RewriteSymbolic s) where
     r1 <|> r2 = RewriteSymbolic
         $ \s -> ((rewriterSymbolic r1) s) <|> ((rewriterSymbolic r2) s)
 
-instance MonadRewrite (RewriteSymbolic s) SymbolicExpr s where
+instance MonadRewrite (RewriteSymbolic s) SymbolicExpr (s SymbolicExpr) where
     get       = RewriteSymbolic $ \(Constrained s cond) -> Just (s, (Constrained s cond))
     put s'    = RewriteSymbolic $ \(Constrained _ cond) -> Just ((), (Constrained s' cond))
     matchFail = RewriteSymbolic $ \_                  -> Nothing
@@ -58,12 +64,16 @@ instance MonadRewrite (RewriteSymbolic s) SymbolicExpr s where
 
 -- Return all terminal states (leaves of an execution tree) using
 -- depth-first evaluation.
-evalAllPathsSymbolic ::
-    forall s. [RewriteSymbolic s ()] -> s -> Symbolic [Constrained s]
-evalAllPathsSymbolic rewrites state
-    = query $ eval' (Constrained state (dBool True))
+evalAllPathsSymbolic :: forall s. DomainFunctor s =>
+    [RewriteSymbolic s ()] -> (Constrained s Term) -> IO [Constrained s Term]
+evalAllPathsSymbolic rewrites cstate
+    = runSMT $ query $ do
+            symState <- dmapM fromTerm cstate
+            result <- eval' symState
+            pure $ map (dmap term) result
+
   where
-    eval' :: Constrained s -> Query [Constrained s]
+    eval' :: Constrained s SymbolicExpr -> Query [Constrained s SymbolicExpr]
     eval' (Constrained s (SymbolicExpr cond expr))
         = case unliteral cond of Just True -> satCase (s, cond, expr)
                                  _         -> checkWithSolver (s, cond, expr)
@@ -95,14 +105,16 @@ evalAllPathsSymbolic rewrites state
 
     --  At each step next gives all new states derived from a single input
     --  state.
-    nexts :: Constrained s -> [Constrained s]
+    nexts :: Constrained s SymbolicExpr -> [Constrained s SymbolicExpr]
     nexts s = (nexts' rewrites s)
 
-    residue :: [Constrained s] -> s -> Constrained s
+    residue :: [Constrained s SymbolicExpr] -> (s SymbolicExpr) -> Constrained s SymbolicExpr
     residue ss s =
         Constrained s (dNot $ foldl' (dOr) (dBool False) (fmap constraint ss))
 
-    nexts' :: [RewriteSymbolic s ()] -> (Constrained s) -> [Constrained s]
+    nexts' :: [RewriteSymbolic s ()]
+           -> (Constrained s SymbolicExpr)
+           -> [Constrained s SymbolicExpr]
     nexts' []       _ = []
     nexts' (rw:rws) s
         = let thisrw = maybeToList (fmap snd ((rewriterSymbolic rw) s))
