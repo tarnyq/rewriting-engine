@@ -34,7 +34,7 @@ import           Rewrite.Symbolic
 -- To do this, the language needed to support some operations:
 
 
-class DomainFunctor s => Summarizable s   where
+class (DomainFunctor s, Ord (s Term), Eq (s Term)) => Summarizable s   where
     -- For summarizing a program, we need to partition the language's rules
     -- into two sets:
 
@@ -185,7 +185,7 @@ type Subst = Map String SomeDomainTerm
 
 
 summarize :: forall s. Summarizable s
-    => Ord (s Term) => Show (s Term) => Eq (Constrained s Term)
+    => Show (s Term)
     => s Term -> IO (SummaryState s)
 summarize init = execSummary
     (summarize' >> printState)
@@ -195,70 +195,75 @@ summarize init = execSummary
     freshVars = map (\i -> (show @Integer i)) [1..]
 
 summarize' :: forall s. Summarizable s
-    => Ord (s Term) => Show (s Term)
+    => Show (s Term)
     => MonadSummary s (Maybe ())
 summarize'
     = runMaybeT $     (MaybeT extend >> MaybeT summarize')
                   <|> pure ()
-  where
-    extend :: MonadSummary s (Maybe ())
-    extend = runMaybeT $ do
-        unex:_ <- lift unexplored
 
-               -- We are in the MaybeT monad,
-               -- so matching failure results in Nothing.
-        rs <- lift representatives
-        let distinct = filter (/= unex) rs
+extend :: forall s. Summarizable s => MonadSummary s (Maybe ())
+extend = runMaybeT $ do
+    unex:_ <- lift unexplored
 
-        asum -- alternative sum
-        -- * First, look for an existing cover.
-          ( (fmap (void . MaybeT . tryCoverNode unex) distinct)
-        -- * Next, try merging
-         ++ (fmap (void . MaybeT . tryMergeNodes unex) distinct)
-        -- * Finally, extend via symbolic execution.
-         ++ [void $ lift $ doBasicBlock unex]
-          )
-        -- In each case, we don't care about the return value, so we throw
-        -- it away using void.
+           -- We are in the MaybeT monad,
+           -- so matching failure results in Nothing.
+    rs <- lift representatives
+    let distinct = filter (/= unex) rs
 
-    doBasicBlock :: Constrained s Term -> MonadSummary s [Constrained s Term]
-    doBasicBlock n = do
-         -- step over cutpoints
-         -- TODO: We want this to take atmost one step.
-         afterCutPoint <- liftIO $ evalAllPathsSymbolic (cutRules) n
-         reached <- liftIO $ concatMapM (evalAllPathsSymbolic basicRules) afterCutPoint
-         st <- State.get
-         State.put $ st { nodes = M.unionWith updateNode (nodes st) $
-            M.fromList $  zip reached (repeat Unexplored) ++ [(n, BasicBlock reached)] }
-         pure reached
+    asum -- alternative sum
+    -- * First, look for an existing cover.
+      ( (fmap (void . MaybeT . tryCoverNode unex) distinct)
+    -- * Next, try merging
+     ++ (fmap (void . MaybeT . tryMergeNodes unex) distinct)
+    -- * Finally, extend via symbolic execution.
+     ++ [void $ lift $ doBasicBlock unex]
+      )
+    -- In each case, we don't care about the return value, so we throw
+    -- it away using void.
 
-    tryCoverNode :: Constrained s Term -> Constrained s Term -> MonadSummary s (Maybe (Constrained s Term))
-    tryCoverNode covering covered = runMaybeT $ do
-         st <- State.get
-         Just _ <- pure $ isCovered (state covering) (state covered)
-         State.put $ st { nodes = M.unionWith updateNode (nodes st) $
-                          M.fromList $ [(covered, Cover covering)]
-                        }
-         pure $ covered
+doBasicBlock :: forall s. Summarizable s =>
+    Constrained s Term -> MonadSummary s [Constrained s Term]
+doBasicBlock n = do
+     -- step over cutpoints
+     -- TODO: We want this to take atmost one step.
+     afterCutPoint <- liftIO $ evalAllPathsSymbolic (cutRules) n
+     reached <- liftIO $ concatMapM (evalAllPathsSymbolic basicRules) afterCutPoint
+     st <- State.get
+     State.put $ st { nodes = M.unionWith updateNode (nodes st) $
+        M.fromList $  zip reached (repeat Unexplored) ++ [(n, BasicBlock reached)] }
+     pure reached
 
-    tryMergeNodes :: Constrained s Term -> Constrained s Term -> MonadSummary s (Maybe (Constrained s Term))
-    tryMergeNodes f1 f2 = runMaybeT $ do
-         st <- State.get
-         merged <- MaybeT $ merge (state f1) (state f2)
-         let merged' = Constrained merged (dBool True)
-         State.put $ st { nodes = M.unionWith updateNode (nodes st) $
-                 M.fromList $ [ (f1, Cover merged')
-                              , (f2, Cover merged')
-                              , (merged', Unexplored)
-                              ] }
-         lift prune
-         pure $ merged'
+tryCoverNode :: forall s. Summarizable s =>
+    Constrained s Term -> Constrained s Term -> MonadSummary s (Maybe (Constrained s Term))
+tryCoverNode covering covered = runMaybeT $ do
+     st <- State.get
+     Just _ <- pure $ isCovered (state covering) (state covered)
+     State.put $ st { nodes = M.unionWith updateNode (nodes st) $
+                      M.fromList $ [(covered, Cover covering)]
+                    }
+     pure $ covered
 
-    -- Reject unexplored
-    updateNode Unexplored n2    = n2
-    updateNode n1 Unexplored    = n1
-    -- Prefer covers
-    updateNode n1@(Cover _) _   = n1
-    updateNode _ n2@(Cover _)   = n2
-    updateNode n1 _             = n1
+tryMergeNodes :: forall s. Summarizable s =>
+    Constrained s Term -> Constrained s Term -> MonadSummary s (Maybe (Constrained s Term))
+tryMergeNodes f1 f2 = runMaybeT $ do
+     st <- State.get
+     merged <- MaybeT $ merge (state f1) (state f2)
+     let merged' = Constrained merged (dBool True)
+     State.put $ st { nodes = M.unionWith updateNode (nodes st) $
+             M.fromList $ [ (f1, Cover merged')
+                          , (f2, Cover merged')
+                          , (merged', Unexplored)
+                          ] }
+     lift prune
+     pure $ merged'
+
+-- Helper for resolving conflicts during map updates/merges
+updateNode :: Successor s -> Successor s -> Successor s
+-- Reject unexplored
+updateNode Unexplored n2    = n2
+updateNode n1 Unexplored    = n1
+-- Prefer covers
+updateNode n1@(Cover _) _   = n1
+updateNode _ n2@(Cover _)   = n2
+updateNode n1 _             = n1
 
