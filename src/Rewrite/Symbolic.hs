@@ -47,12 +47,6 @@ instance Monad (RewriteSymbolic s) where
 instance MonadFail (RewriteSymbolic s) where
     fail _ = RewriteSymbolic $ \_ -> Nothing
 
-instance Alternative (RewriteSymbolic s) where
-    empty = RewriteSymbolic $ \_ -> Nothing
-    {-# INLINE (<|>) #-}
-    r1 <|> r2 = RewriteSymbolic
-        $ \s -> ((rewriterSymbolic r1) s) <|> ((rewriterSymbolic r2) s)
-
 instance MonadRewrite (RewriteSymbolic s) SymbolicExpr (s SymbolicExpr) where
     get       = RewriteSymbolic $ \(Constrained s cond) -> Just (s, (Constrained s cond))
     put s'    = RewriteSymbolic $ \(Constrained _ cond) -> Just ((), (Constrained s' cond))
