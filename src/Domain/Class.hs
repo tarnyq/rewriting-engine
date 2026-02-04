@@ -1,7 +1,7 @@
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 
-module Domain.Class (DomainValue(..), DomainFunctor(..)) where
+module Domain.Class (DomainValue(..), DomainFunctor(..), dTrue, dFalse) where
 
 import Control.Monad.Identity
 import Data.SBV
@@ -30,6 +30,12 @@ class DomainValue repr where
     dNot      :: repr Bool -> repr Bool
 
     {-# MINIMAL dInteger, dAdd, dMul, dDiv, dBool, dNEq, dLt, dAnd, dOr, dNot #-}
+
+dTrue :: DomainValue dv => dv Bool
+dTrue  = dBool True
+
+dFalse :: DomainValue dv => dv Bool
+dFalse = dBool False
 
 -- Allows mapping from one Domain representation to another.
 -- Each language's state must implement this to allow algorithms such
