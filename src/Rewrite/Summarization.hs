@@ -278,9 +278,9 @@ doBasicBlock n = do
   where
     evalAllPathsSymbolic :: [RewriteSymbolic s ()] -> (Constrained s Term) -> IO [Constrained s Term]
     evalAllPathsSymbolic rewrites cstate
-      = runSMT $ query $ do symState <- dmapM fromTerm cstate
-                            result <- eval' rewrites symState
-                            pure $ map (dmap term) result
+      = runSMT $ query $ undefined --- symState <- dmapM fromTerm cstate
+                            --- result <- eval' rewrites symState
+                            --- pure $ map (dmap term) result
 
     eval' :: [RewriteSymbolic s ()] -> Constrained s SymbolicExpr -> Query [Constrained s SymbolicExpr]
     -- We split off the expr from cond so that we do not need to repeatedly
@@ -339,6 +339,6 @@ doBasicBlock n = do
            -> [Constrained s SymbolicExpr]
     nexts' []       _ = []
     nexts' (rw:rws) s
-        = let thisrw = maybeToList (fmap snd ((rewriterSymbolic rw) s))
-          in thisrw ++ (nexts' rws s)
+        = undefined -- let thisrw = maybeToList (fmap snd ((rewriterSymbolic rw) s))
+          -- in thisrw ++ (nexts' rws s)
 

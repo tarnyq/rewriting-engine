@@ -452,8 +452,8 @@ sum_imp_symbolic n = Pgm ids stmts  where
 ---------------------------------------------------------------------
 -- Analyses
 
-evalAllPaths_imp_symbolic :: Constrained State Term -> IO [Constrained State Term]
-evalAllPaths_imp_symbolic cstate = evalAllPathsSymbolic imp_symbolic cstate
+evalAllPaths_imp_symbolic :: Integer -> Constrained State Term -> IO (ExecResult State ())
+evalAllPaths_imp_symbolic = evalAllPathsSymbolic imp_symbolic
 
 evalOnePath_imp_symbolic :: (Pgm ConcreteValue) -> State ConcreteValue
 evalOnePath_imp_symbolic pgm = evalOnePath imp_symbolic $ impInitState pgm

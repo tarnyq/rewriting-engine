@@ -43,17 +43,17 @@ main = do
                         $ sum_imp_symbolic (dInteger (read n))
         -- Run sum on all-paths, using the "symbolic" semantics with SymbolicExpr
         ["symbolic", "srunsum", n] ->
-             do cstate <- evalAllPaths_imp_symbolic $
+             do cstate <- evalAllPaths_imp_symbolic 1000 $
                             Constrained (SymbolicImp.impInitState $ sum_imp_symbolic $ dInteger (read n))
                                         (dBool True)
-                liftIO $ print $ map state cstate
+                liftIO $ print cstate
 
         -- Return terminal states for sum-to-n, where N < 10
         ["symbolic", "lt10"]  ->
-            do cstate <- evalAllPaths_imp_symbolic $
-                    (Constrained (SymbolicImp.impInitState $ sum_imp_symbolic (IntLit 10))
-                                 (dLt (IntLit 10) (IntVar "n")))
-               print $ map state cstate
+            do cstate <- evalAllPaths_imp_symbolic 10000 $
+                    (Constrained (SymbolicImp.impInitState $ sum_imp_symbolic (IntVar "n"))
+                                 (dLt (IntVar "n") (IntLit $ 10)))
+               print cstate
         ["symbolic", "summarize"]  ->
             do _cstate <- summarize_imp $ sum_imp_symbolic (IntVar "n")
                pure ()

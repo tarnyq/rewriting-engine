@@ -3,8 +3,13 @@
 
 module Domain.SymbolicExpr (SymbolicExpr(..), fromTerm, DomainFunctor(..)) where
 
+
+import           Control.Monad.Trans.State
+import           Control.Monad.IO.Class
+import qualified Data.Map as M
 import           Data.SBV (SBV, freshVar)
 import           Data.SBV.Control (Query)
+import           Data.SBV.Trans.Control (QueryT)
 import           Domain.Class
 import           Domain.Term
 import qualified Domain.Term as T
@@ -38,30 +43,50 @@ instance DomainValue SymbolicExpr where
     dAnd  (SymbolicExpr a1 b1) (SymbolicExpr a2 b2) = SymbolicExpr (dAnd a1 a2) (dAnd b1 b2)
 
 
-fromTerm :: Term a -> Query (SymbolicExpr a)
-fromTerm t@(IntVar n) = do v <- (freshVar n)
-                           pure $ SymbolicExpr v t
-fromTerm t@(BoolVar n) = do v <- (freshVar n)
-                            pure $ SymbolicExpr v t
+type VarCtx = M.Map String (SBV Integer)
+type QueryVar = (StateT VarCtx Query)
 
-fromTerm (IntLit i) = pure $ dInteger i
-fromTerm (Add a)    = do args <- (mapM fromTerm a)
-                         pure $ foldl' dAdd (dInteger 0) args
-fromTerm (Mul a b)  = fromTermBin dMul a b
-fromTerm (Div a b)  = fromTermBin dDiv a b
+fromTerm    :: Term a -> QueryVar (SymbolicExpr a)
 
-fromTerm (BoolLit i) = pure $ dBool i
-fromTerm (And a b) = fromTermBin dAnd a b
-fromTerm (Or a b) = fromTermBin dOr a b
-fromTerm (NEq a b) = fromTermBin dNEq a b
-fromTerm (Not a) = do a' <- fromTerm a
-                      pure $ dNot a'
-fromTerm (T.LT a b) = fromTermBin dLt a b
 
-fromTermBin ::   (SymbolicExpr a -> SymbolicExpr b -> SymbolicExpr c)
+fromTerm    t@(IntVar n)
+    = do ctx <- get
+         v <- case (M.lookup n ctx) of
+                Nothing -> do v <- freshVar n
+                              liftIO $ putStrLn $ "Create: " ++ n
+                              put $ M.insert n v ctx
+                              pure v
+                Just v  -> do liftIO $ putStrLn $ "Use: " ++ n
+                              pure v
+         st <-  get
+         liftIO $ print st
+         pure (SymbolicExpr v t)
+
+
+fromTerm    (BoolVar _)
+    = error $ "Fixme: Bool variables not supported. " ++
+              "Use existentials in Ctx to support arbitrary types."
+
+fromTerm    (IntLit i) = pure (dInteger i)
+fromTerm    (Add a)
+    = do args <- mapM fromTerm    a
+         pure (foldl' dAdd (dInteger 0) args)
+fromTerm    (Mul a b) = fromTermBin dMul a b
+fromTerm    (Div a b) = fromTermBin dDiv a b
+
+fromTerm    (BoolLit i) = pure (dBool i)
+fromTerm    (And a b) = fromTermBin dAnd a b
+fromTerm    (Or a b) = fromTermBin dOr a b
+fromTerm    (NEq a b) = fromTermBin dNEq a b
+fromTerm    (Not a)
+    = do a' <- fromTerm    a
+         pure (dNot a')
+
+fromTerm    (T.LT a b) = fromTermBin dLt a b
+
+fromTermBin :: (SymbolicExpr a -> SymbolicExpr b -> SymbolicExpr c)
                -> Term a -> Term b
-               -> Query (SymbolicExpr c)
-fromTermBin f a b = do a' <- fromTerm a
-                       b' <- fromTerm b
-                       pure $ f a' b'
-
+               -> QueryVar (SymbolicExpr c)
+fromTermBin f a b = do a' <- fromTerm    a
+                       b' <- fromTerm    b
+                       pure (f a' b')
