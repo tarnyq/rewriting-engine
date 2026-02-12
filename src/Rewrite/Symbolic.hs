@@ -181,13 +181,10 @@ instance MonadFail (RewriteSymbolic s) where
 
 
 ------------------------------------------------------------------------
---  All path evaluation: Returns the result of applying (rewrites*).
---  That is the kleene star over a rewrite system. Using the SMT solver to
---  prune some branches.
---
---  All returned states are terminal. Evaluation uses a depth-first strategy
+--  All path evaluation: Returns the result of applying (rewrites+), that is
+--  one or more rewrites. Using the SMT solver to prune branches.
+--  Evaluation uses a depth-first strategy
 --  to take maximal advantage of the SMT solver's (push) and (pop) directives.
---
 --  This is a somewhat limited tool, giving little control over execution.
 --  It should mainly be used when termination is guaranteed relatively quickly.
 
@@ -201,11 +198,11 @@ evalAllPathsSymbolic :: forall s. (DomainFunctor s, Show (s SymbolicExpr)) =>
 evalAllPathsSymbolic rewrites depth cstate
     = runSMT $ query $ do
             init <- termToSymbolic cstate
-            eval' depth init $ ExecBranch (constraint init)
+            eval' depth Nothing $ ExecBranch (constraint init)
                     (Just [((), init)])
   where
-    eval' :: Integer -> (Constrained s SymbolicExpr) -> ExecBranch s () -> Query (ExecResult s ())
-    --       depth   -> current state                -> next-state      -> final states
+    eval' :: Integer -> Maybe (Constrained s SymbolicExpr) -> ExecBranch s () -> Query (ExecResult s ())
+    --       depth   -> curr: State we arrived here from   -> next-state      -> final states
 
     -- We split off the expr from sbvcond so that we do not need to repeatedly
     -- assert the entire path condition, rather, only the incremental addition.
@@ -226,11 +223,12 @@ evalAllPathsSymbolic rewrites depth cstate
                Unk -> error "Solver returned unknown!"
                DSat _ -> error "Solver returned DSat?!"
 
-    satCase :: Integer -> (Constrained s SymbolicExpr) -> ExecBranch s () -> Query (ExecResult s ())
+    satCase :: Integer -> Maybe (Constrained s SymbolicExpr) -> ExecBranch s () -> Query (ExecResult s ())
 
-    --- If no rule matches, then (rewrite*) returns the last reachable state.
+    -- If no rule matches, then (rewrite*) return just the last reachable state.
+    -- If no steps were taken, we return Nothing.
     satCase depth cs (ExecBranch condexpr Nothing)
-     = pure [ExecBranch condexpr $ Just [((), cs)]]
+     = pure [ExecBranch condexpr $ fmap (\x -> [((), x)]) cs]
 
     satCase depth cs br@(ExecBranch condexpr (Just [])) = pure [br]
 
@@ -250,7 +248,7 @@ evalAllPathsSymbolic rewrites depth cstate
                          (dAnd termcond n_termcond)
                      )
                      n_n
-           concatMapM ((eval' (depth-1) next) . combine) nextbrs
+           concatMapM ((eval' (depth-1) (Just next)) . combine) nextbrs
 
     satCase depth cs (ExecBranch (SymbolicExpr _ expr) (Just ss@(_:_:_))) =
         error $ "Non-determinism not implemented.\n\n" ++ (show expr) ++ "\n\n" ++ (show ss)
