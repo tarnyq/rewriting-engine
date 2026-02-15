@@ -33,6 +33,8 @@ deriving instance (Ord (s dv), Ord (dv Bool)) => Ord (Constrained s dv)
 -- All path symbolic execution
 -- ---------------------------
 
+-- TODO: Implements (rewrite+) for a rewriting system 'rewrite'
+
 -- All path symbolic execution is an algorithm that allows us to compute
 -- the all states reachable from an initial symbolic state, perhaps conditionally.
 -- Thus the Monad must encode: (a) non-application of all rules,
@@ -179,7 +181,6 @@ instance MonadRewrite (RewriteSymbolic s) SymbolicExpr (s SymbolicExpr) where
 instance MonadFail (RewriteSymbolic s) where
     fail _ = matchFail
 
-
 ------------------------------------------------------------------------
 --  All path evaluation: Returns the result of applying (rewrites+), that is
 --  one or more rewrites. Using the SMT solver to prune branches.
@@ -191,7 +192,6 @@ instance MonadFail (RewriteSymbolic s) where
 termToSymbolic :: forall s. (DomainFunctor s) =>
     (Constrained s Term) -> Query (Constrained s SymbolicExpr)
 termToSymbolic t = T.evalStateT (dmapM fromTerm t) M.empty
-
 
 evalAllPathsSymbolic :: forall s. (DomainFunctor s, Show (s SymbolicExpr)) =>
     [RewriteSymbolic s ()] -> Integer -> (Constrained s Term) -> IO (ExecResult s ())

@@ -267,78 +267,23 @@ updateNode n1 _             = n1
 doBasicBlock :: forall s. Summarizable s =>
     Constrained s Term -> MonadSummary s [Constrained s Term]
 doBasicBlock n = do
-     -- step over cutpoints
-     -- TODO: We want this to take atmost one step.
-     afterCutPoint <- liftIO $ evalAllPathsSymbolic (cutRules) n
-     reached <- liftIO $ concatMapM (evalAllPathsSymbolic basicRules) afterCutPoint
-     st <- State.get
-     State.put $ st { nodes = M.unionWith updateNode (nodes st) $
-        M.fromList $  zip reached (repeat Unexplored) ++ [(n, BasicBlock reached)] }
-     pure reached
+    -- atMostOneCut may apply multiple rules internally, before checking
+    -- with the SMT solver. So we only need to check one path condition.
+    result <- liftIO $ evalAllPathsSymbolic [atMostOneCut] 1 n
+    let split_targets = fmap (\br -> (Constrained (dAnd (constraint n) (constr br)) (state n))) result
+    let split_edge = [n, Split split_targets]
+    let bb_edges = fmap (\(br,split) -> (split, BasicBlock (states br))) (zip result split_targets)
+    let reached_nodes = concatMap (maybe [] (fmap snd).states) result
+    let unexplored_edges = zip reached (repeat Unexplored)
+    st <- State.get
+
+    State.put $ st { nodes = M.unionWith updateNode (nodes st) $
+       M.fromList $  [split_edge] ++ bb_edges ++ unexplored_edges }
+    pure reached_nodes
   where
-    evalAllPathsSymbolic :: [RewriteSymbolic s ()] -> (Constrained s Term) -> IO [Constrained s Term]
-    evalAllPathsSymbolic rewrites cstate
-      = runSMT $ query $ undefined --- symState <- dmapM fromTerm cstate
-                            --- result <- eval' rewrites symState
-                            --- pure $ map (dmap term) result
+    basic = (foldl (<|>) empty basicRules)
+    cuts = (foldl (<|>) empty cutRules)
+    basicStar = many basic
 
-    eval' :: [RewriteSymbolic s ()] -> Constrained s SymbolicExpr -> Query [Constrained s SymbolicExpr]
-    -- We split off the expr from cond so that we do not need to repeatedly
-    -- assert the entire path condition, rather, only the incremental addition.
-    eval' rewrites (Constrained s (SymbolicExpr cond expr))
-          -- case analysis to avoid calling into the sat solver
-          -- when unnessesary.
-        = case unliteral cond of Just True -> satCase rewrites s expr
-                                 _         -> checkWithSolver rewrites s cond expr
-
-    checkWithSolver rewrites s cond expr = inNewAssertionStack $
-        do constrain cond
-           res <- checkSat
-           case res of
-               Sat -> satCase rewrites s expr
-               Unsat -> pure []
-               Unk -> error "Solver returned unknown!"
-               DSat _ -> error "Solver returned DSat?!"
-
-    satCase rewrites s expr = inNewAssertionStack $
-        do -- Since we already asserted the condition in this Query context,
-           -- we do not need that as part of the Constrained for continued
-           -- execution.
-           let ns = nexts rewrites (Constrained s (SymbolicExpr sTrue expr))
-           terminals <- concatMapM (eval' rewrites) ns
-
-           -- If the branch conditions of all next states is not total,
-           -- we also need to consider the residue, i.e. the negation
-           -- of the disjunction of all the path conditions returned
-           -- by next.
-           let residue = mkResidue ns s
-           constrain $ (sbv . constraint) residue
-           let expr' = dAnd ((term.constraint) residue) expr
-           let constr' = (SymbolicExpr
-                        ((sbv.constraint) residue)
-                        (expr'))
-           let residue' = residue { constraint=constr' }
-           res <- checkSat
-
-           case res of Sat -> pure $ residue':terminals
-                       Unsat -> pure terminals
-                       Unk -> error "Solver returned unknown!"
-                       DSat _ -> error "Solver returned DSat?!"
-
-    mkResidue :: [Constrained s SymbolicExpr] -> (s SymbolicExpr) -> Constrained s SymbolicExpr
-    mkResidue ss s =
-        Constrained s (dNot $ foldl' (dOr) (dBool False) (fmap constraint ss))
-
-    --  At each step next gives all new states derived from a single input
-    --  state.
-    nexts :: [RewriteSymbolic s ()] -> Constrained s SymbolicExpr -> [Constrained s SymbolicExpr]
-    nexts rewrites s = (nexts' rewrites s)
-
-    nexts' :: [RewriteSymbolic s ()]
-           -> (Constrained s SymbolicExpr)
-           -> [Constrained s SymbolicExpr]
-    nexts' []       _ = []
-    nexts' (rw:rws) s
-        = undefined -- let thisrw = maybeToList (fmap snd ((rewriterSymbolic rw) s))
-          -- in thisrw ++ (nexts' rws s)
-
+    atMostOneCut :: RewriteSymbolic s ()
+    atMostOneCut = (cuts <|> pure ()) >> basicStar
